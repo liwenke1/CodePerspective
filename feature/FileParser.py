@@ -1,24 +1,21 @@
-from grammer import JavaParserListener
+class FileParser():
+    def __init__(self, file) -> None:
+        self.file = file
 
-
-class JavaExtract():
-    def __init__(self, s) -> None:
-        super().__init__()
-        
         # function-based code features 
-        self.newCallNumber = 0
-        self.oldCallNumber = 0
-        self.safetyCallNumber = 0
+        self.newUsageNumber = 0
+        self.oldUsageNumber = 0
+        self.safetyUsageNumber = 0
+        
         self.lambdaCallNumber = 0
         self.allCallNumber = 0
 
         self.normalizedFunctionNumber = 0
         self.longFunctionNumber = 0
-        self.functionNumber = 0
-
-        self.functionName = []
 
         # variable
+        self.normalizedVariableNumber = 0
+        self.variableNumber = 0
 
         # comment
         self.commentLines = 0
@@ -31,4 +28,5 @@ class JavaExtract():
         # code style
         self.validExceptionNumber = 0
         self.exceptionNumber = 0
-
+    
+    
