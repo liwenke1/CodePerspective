@@ -1,13 +1,12 @@
 from JavaParserListener import JavaParserListener
 from JavaParser import JavaParser
-from JavaLexer import JavaLexer
 from antlr4 import *
 
-import json
+from JavaLexer import JavaLexer
 
 class JavaExtract(JavaParserListener):
 
-    def __init__(self, tokens) -> None:
+    def __init__(self, tokens):
         super().__init__()
 
         # tokens
@@ -56,15 +55,19 @@ class JavaExtract(JavaParserListener):
         return super().enterImportDeclaration(ctx)
 
     def enterCatchType(self, ctx: JavaParser.CatchTypeContext):
-        exceptionName = ctx.qualifiedName().getText()
-        self.exceptionName.append(exceptionName)
-        self.exceptionNumber += 1
+        exceptionList = ctx.qualifiedName().getText()
+        for exception in exceptionList:
+            exceptionName = exception.getText()
+            self.exceptionName.append(exceptionName)
+            self.exceptionNumber += 1
         return super().enterCatchType(ctx)
 
     def enterMethodDeclaration(self, ctx: JavaParser.MethodDeclarationContext):
         # capture exception name and number
         if ctx.THROWS() != None:
-            exceptionName = ctx.qualifiedNameList().getText()
+            qualifiedList = ctx.qualifiedNameList().qualifiedName()
+            for qualified in qualifiedList:
+                exceptionName = qualified.getText()
             self.exceptionName.append(exceptionName)
             self.exceptionNumber += 1
 
@@ -87,17 +90,22 @@ class JavaExtract(JavaParserListener):
 
     def enterInterfaceCommonBodyDeclaration(self, ctx: JavaParser.InterfaceCommonBodyDeclarationContext):
         if ctx.THROWS() != None:
-            context = ctx.qualifiedNameList().getText()
-            self.exceptionName.append(context)
-            self.exceptionNumber += 1
+            qualifiedList = ctx.qualifiedNameList().qualifiedName()
+            for qualified in qualifiedList:
+                exceptionName = qualified.getText()
+                self.exceptionName.append(exceptionName)
+                self.exceptionNumber += 1
         return super().enterInterfaceCommonBodyDeclaration(ctx)
 
-    def enterConstDeclaration(self, ctx: JavaParser.ConstDeclarationContext):
+    def enterConstructorDeclaration(self, ctx: JavaParser.ConstructorDeclarationContext):
         if ctx.THROWS() != None:
-            context = ctx.qualifiedNameList().getText()
-            self.exceptionName.append(context)
-            self.exceptionNumber += 1
-        return super().enterConstDeclaration(ctx)
+            qualifiedList = ctx.qualifiedNameList().qualifiedName()
+            for qualified in qualifiedList:
+                exceptionName = qualified.getText()
+                self.exceptionName.append(exceptionName)
+                self.exceptionNumber += 1
+        return super().enterConstructorDeclaration(ctx)
+
 
     def enterFieldDeclaration(self, ctx: JavaParser.FieldDeclarationContext):
         contextList = ctx.variableDeclarators().variableDeclarator()
@@ -137,3 +145,15 @@ class JavaExtract(JavaParserListener):
                     }
                 )
         return super().enterMethodCall(ctx)
+
+
+if __name__ == '__main__':
+    javaLexer = JavaLexer(FileStream('/Users/liwenke/Desktop/code/CodePerspective/feature/grammer/test.java'))
+    tokenStream = CommonTokenStream(javaLexer)
+    javaParser = JavaParser(tokenStream)
+
+    listener = JavaExtract(tokenStream)
+
+    walker = ParseTreeWalker()
+    walker.walk(listener, javaParser.compilationUnit())
+    print(1)

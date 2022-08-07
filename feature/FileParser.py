@@ -1,5 +1,5 @@
 class FileParser():
-    def __init__(self, file) -> None:
+    def __init__(self, file):
         self.file = file
 
         # function-based code features 
