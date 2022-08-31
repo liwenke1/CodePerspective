@@ -2,36 +2,20 @@ from JavaParserListener import JavaParserListener
 from JavaParser import JavaParser
 from antlr4 import *
 
-from JavaLexer import JavaLexer
-
 class JavaExtract(JavaParserListener):
 
-    def __init__(self, tokens):
+    def __init__(self):
         super().__init__()
 
-        # tokens
-        self.tokens = tokens
-
         # function-based code features
-        self.newCallNumber = 0
-        self.oldCallNumber = 0
-        self.safetyCallNumber = 0
-        self.lambdaCallNumber = 0
-        self.allCallNumber = 0
-
-        self.normalizedFunctionNumber = 0
-        self.longFunctionNumber = 0
-        
+        self.functionNumber = 0
         self.functionList = []
+        self.lambdaFunctionNumber = 0
 
         # variable
         self.classVariableName = []
-
-
-        # comment
-        self.commentLines = 0
-        self.codeLines = 0
-
+        self.classVariableNumber = 0
+        
         # quote
         self.importNumber = 0
         self.importName = []
@@ -86,6 +70,7 @@ class JavaExtract(JavaParserListener):
                 'functionCallList': []
             }
         )
+        self.functionNumber += 1
         return super().enterMethodDeclaration(ctx)
 
     def enterInterfaceCommonBodyDeclaration(self, ctx: JavaParser.InterfaceCommonBodyDeclarationContext):
@@ -112,6 +97,7 @@ class JavaExtract(JavaParserListener):
         for context in contextList:
             variableName = context.variableDeclaratorId().getText()
             self.classVariableName.append(variableName)
+            self.classVariableNumber += 1
         return super().enterFieldDeclaration(ctx)
 
     def enterLocalVariableDeclaration(self, ctx: JavaParser.LocalVariableDeclarationContext):
@@ -146,14 +132,6 @@ class JavaExtract(JavaParserListener):
                 )
         return super().enterMethodCall(ctx)
 
-
-if __name__ == '__main__':
-    javaLexer = JavaLexer(FileStream('/Users/liwenke/Desktop/code/CodePerspective/feature/grammer/test.java'))
-    tokenStream = CommonTokenStream(javaLexer)
-    javaParser = JavaParser(tokenStream)
-
-    listener = JavaExtract(tokenStream)
-
-    walker = ParseTreeWalker()
-    walker.walk(listener, javaParser.compilationUnit())
-    print(1)
+    def enterLambdaExpression(self, ctx: JavaParser.LambdaExpressionContext):
+        self.lambdaFunctionNumber += 1
+        return super().enterLambdaExpression(ctx)
