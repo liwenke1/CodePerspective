@@ -3,8 +3,10 @@
 *.interp
 
 # test file
-*.java
+*test*
+
+# compile file
+__pycache__/
 
 # config
-
 .vscode

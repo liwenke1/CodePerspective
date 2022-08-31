@@ -1,32 +1,74 @@
+import re
+
+from grammer.JavaParser import JavaParser
+from grammer.JavaLexer import JavaLexer
+from antlr4 import *
+from grammer.JavaExtract import JavaExtract
+
+
 class FileParser():
-    def __init__(self, file):
-        self.file = file
 
-        # function-based code features 
-        self.newUsageNumber = 0
-        self.oldUsageNumber = 0
-        self.safetyUsageNumber = 0
+    def __init__(self):
+        self.listener = JavaExtract()
+        self.walker = ParseTreeWalker()
+
+    def analyzeUsage(self, code):
+        # usage after jdk8
+        rules_new = [
+            r"\-\>", r"\.stream", r"Instant\.", r"LocalDate\.", r"LocalTime\.",
+            r"LocalDateTime\.", r"ZonedDateTime\.", r"Period\.",
+            r"ZoneOffset\.", r"Clock\.", r"Optional\.", r"var", r"copyOf\(",
+            r"ByteArrayOutputStream\(", r"\.transferTo", r"\.isBlank",
+            r"\.strip", r"\.stripTrailing", r"\.stripLeading", r"\.repeat",
+            r"Pack200\.", r"\"\"\"", r"\@\S+\n\@\S+\n"
+        ]
+        # abandon usage
+        rules_old = [
+            r"com\.sun\.awt\.AWTUtilities", r"sun\.misc\.Unsafe\.defineClass",
+            r"Thread\.destroy", r"Thread\.stop", r"jdk\.snmp"
+        ]
+        # safety usage
+        rules_safety = [
+            r"public final", r"private final", r"SecurityManager",
+            r"synchronized", r"volatile", r"ReentrantLock"
+        ]
+
+        newUsageNumber = sum([len(re.findall(rule, code)) for rule in rules_new])
+        oldUsageNumber = sum([len(re.findall(rule, code)) for rule in rules_old])
+        safetyUsageNumber = sum([len(re.findall(rule, code)) for rule in rules_safety])
         
-        self.lambdaCallNumber = 0
-        self.allCallNumber = 0
+        return newUsageNumber, oldUsageNumber, safetyUsageNumber
 
-        self.normalizedFunctionNumber = 0
-        self.longFunctionNumber = 0
+    def extractStringOutput(self, code):
+        rules = [
+            r'info[(]"(.*?)"[)]',
+            r'err[(]"(.*?)"[)]',
+            r'error[(]"(.*?)"[)]',
+            r'[sS]ystem.err.println[(]"(.*?)"[)];',
+            r'[sS]ystem.out.println[(]"(.*?)"[)]',
+            r'[sS]ystem.out.printf[(]"(.*?)"[)]',
+            r'[sS]ystem.out.print[(]"(.*?)"[)]'
+        ]
 
-        # variable
-        self.normalizedVariableNumber = 0
-        self.variableNumber = 0
+        stringOutput = []
+        for rule in rules:
+            stringOutput.extend(re.findall(rule, code))
+        
+        return stringOutput
 
-        # comment
-        self.commentLines = 0
-        self.codeLines = 0
+    def extractComment(self, tokenStream):
+        comment = []
 
-        # quote
-        self.validImportNumber = 0
-        self.importNumber = 0
+        for token in tokenStream.tokens:
+            if token.channel == 4:
+                comment.append(token.text)
 
-        # code style
-        self.validExceptionNumber = 0
-        self.exceptionNumber = 0
-    
-    
+        return comment
+
+    def parse(self, file):
+        # parse ast
+        tokenStream = CommonTokenStream(JavaLexer(InputStream(file)))
+        parser = JavaParser(tokenStream)
+        self.walker.walk(self.listener, parser.compilationUnit())
+
+        #TODO: extract feature
