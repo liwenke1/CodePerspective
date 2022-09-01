@@ -4,7 +4,12 @@
 
 # test file
 *.java
+*test*
+
 
 # config
 .DS_Store
 .vscode
+
+# compile file
+__pycache__/
