@@ -3,10 +3,8 @@
 *.interp
 
 # test file
-*test*
-
-# compile file
-__pycache__/
+*.java
 
 # config
+.DS_Store
 .vscode
