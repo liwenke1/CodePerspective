@@ -65,6 +65,27 @@ class FileParser():
 
         return comment
 
+    def calculateFunctionLengthAndVariableLocation(self, listener):
+        functionLength = []
+        variableLocation = []
+
+        for function in listener.functionList:
+            # calculate function length
+            functionLength.append(function['functionEndLine'] - function['functionStartLine'] + 1)
+
+            # calculate variable location
+            functionStartLine = function['functionStartLine']
+            variableRelativeLocation = []
+            for variable in function['localVariableList']:
+                variableRelativeLocation.append(variable['Line'] - functionStartLine + 1)
+
+            variableLocation.append({
+                'functionLength': functionLength[-1],
+                'variableRelativeLocation': variableRelativeLocation
+            })
+
+        return functionLength, variableLocation
+
     def parse(self, file):
         # parse ast
         tokenStream = CommonTokenStream(JavaLexer(InputStream(file)))
