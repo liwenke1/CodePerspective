@@ -7,44 +7,56 @@ class JavaExtract(JavaParserListener):
     def __init__(self):
         super().__init__()
 
-        # function-based code features
+        # function-based
         self.functionNumber = 0
         self.functionList = []
         self.lambdaFunctionNumber = 0
 
-        # variable
-        self.classVariableName = []
+        # class-based 
+        self.classNameList = []
+        self.classNumber = 0
+        self.classVariableNameList = []
         self.classVariableNumber = 0
         
         # quote
         self.importNumber = 0
-        self.importName = []
+        self.importNameList = []
 
         # code style
         self.exceptionNumber = 0
-        self.exceptionName = []
+        self.exceptionNameList = []
         self.packageNumber = 0
-        self.packageName = []
+        self.packageNameList = []
+
 
     def enterPackageDeclaration(self, ctx: JavaParser.PackageDeclarationContext):
         packageName = ctx.qualifiedName().getText()
-        self.packageName.append(packageName)
+        self.packageNameList.append(packageName)
         self.packageNumber += 1
         return super().enterPackageDeclaration(ctx)
 
+
     def enterImportDeclaration(self, ctx: JavaParser.ImportDeclarationContext):
         importName = ctx.qualifiedName().getText()
-        self.importName.append(importName)
+        self.importNameList.append(importName)
         self.importNumber += 1
         return super().enterImportDeclaration(ctx)
+
+
+    def enterClassDeclaration(self, ctx: JavaParser.ClassDeclarationContext):
+        self.classNameList.append(ctx.identifier().getText())
+        self.classNumber += 1
+        return super().enterClassDeclaration(ctx)
+
 
     def enterCatchType(self, ctx: JavaParser.CatchTypeContext):
         exceptionList = ctx.qualifiedName().getText()
         for exception in exceptionList:
             exceptionName = exception.getText()
-            self.exceptionName.append(exceptionName)
+            self.exceptionNameList.append(exceptionName)
             self.exceptionNumber += 1
         return super().enterCatchType(ctx)
+
 
     def enterMethodDeclaration(self, ctx: JavaParser.MethodDeclarationContext):
         # capture exception name and number
@@ -52,7 +64,7 @@ class JavaExtract(JavaParserListener):
             qualifiedList = ctx.qualifiedNameList().qualifiedName()
             for qualified in qualifiedList:
                 exceptionName = qualified.getText()
-            self.exceptionName.append(exceptionName)
+            self.exceptionNameList.append(exceptionName)
             self.exceptionNumber += 1
 
         # capture function information
@@ -73,21 +85,23 @@ class JavaExtract(JavaParserListener):
         self.functionNumber += 1
         return super().enterMethodDeclaration(ctx)
 
+
     def enterInterfaceCommonBodyDeclaration(self, ctx: JavaParser.InterfaceCommonBodyDeclarationContext):
         if ctx.THROWS() != None:
             qualifiedList = ctx.qualifiedNameList().qualifiedName()
             for qualified in qualifiedList:
                 exceptionName = qualified.getText()
-                self.exceptionName.append(exceptionName)
+                self.exceptionNameList.append(exceptionName)
                 self.exceptionNumber += 1
         return super().enterInterfaceCommonBodyDeclaration(ctx)
+
 
     def enterConstructorDeclaration(self, ctx: JavaParser.ConstructorDeclarationContext):
         if ctx.THROWS() != None:
             qualifiedList = ctx.qualifiedNameList().qualifiedName()
             for qualified in qualifiedList:
                 exceptionName = qualified.getText()
-                self.exceptionName.append(exceptionName)
+                self.exceptionNameList.append(exceptionName)
                 self.exceptionNumber += 1
         return super().enterConstructorDeclaration(ctx)
 
@@ -96,9 +110,10 @@ class JavaExtract(JavaParserListener):
         contextList = ctx.variableDeclarators().variableDeclarator()
         for context in contextList:
             variableName = context.variableDeclaratorId().getText()
-            self.classVariableName.append(variableName)
+            self.classVariableNameList.append(variableName)
             self.classVariableNumber += 1
         return super().enterFieldDeclaration(ctx)
+
 
     def enterLocalVariableDeclaration(self, ctx: JavaParser.LocalVariableDeclarationContext):
         variableList = ctx.variableDeclarators().variableDeclarator()
@@ -114,6 +129,7 @@ class JavaExtract(JavaParserListener):
                 }
             )
         return super().enterLocalVariableDeclaration(ctx)
+
 
     def enterMethodCall(self, ctx: JavaParser.MethodCallContext):
         functionCallName = ctx.identifier().getText()
@@ -131,6 +147,7 @@ class JavaExtract(JavaParserListener):
                     }
                 )
         return super().enterMethodCall(ctx)
+
 
     def enterLambdaExpression(self, ctx: JavaParser.LambdaExpressionContext):
         self.lambdaFunctionNumber += 1
