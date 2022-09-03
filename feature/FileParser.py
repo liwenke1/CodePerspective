@@ -1,3 +1,4 @@
+import codecs
 import json
 import re
 import numpy as np
@@ -69,6 +70,11 @@ class FileParser():
                 comment.append(token.text)
 
         return comment
+
+
+    def calculateCommentRate(self, comment, file):
+        codeLength = len(file.readlines())
+        return len(comment) / codeLength
 
 
     def calculateLongFunctionRate(self):
@@ -169,9 +175,31 @@ class FileParser():
         return englishLevel, normalIdentifierNumber / len(identifierList)
 
 
+    def calculateFunctionCallMethod(self):
+        if self.listener.lambdaFunctionNumber + self.listener.functionNumber == 0:
+            return None
+
+        return self.listener.lambdaFunctionNumber / (self.listener.lambdaFunctionNumber + self.listener.functionNumber)
+
+
+    def calculateRoughExceptionRate(self):
+        if self.listener.exceptionNumber == 0 :
+            return None
+
+        roughExceptNumber = 0
+        for exceptName in self.listener.exceptionNameList:
+            if exceptName == 'Exception':
+                roughExceptNumber += 1
+
+        return roughExceptNumber / self.listener.exceptionNumber
+
+
     def parse(self, file):
+        fileBytes = file.read()
+        fileData = codecs.decode(fileBytes, encoding='ascii', errors='strict')
+        
         # parse ast
-        tokenStream = CommonTokenStream(JavaLexer(InputStream(file)))
+        tokenStream = CommonTokenStream(JavaLexer(InputStream(fileData)))
         parser = JavaParser(tokenStream)
         self.walker.walk(self.listener, parser.compilationUnit())
 
