@@ -1,5 +1,5 @@
-from JavaParserListener import JavaParserListener
-from JavaParser import JavaParser
+from .JavaParserListener import JavaParserListener
+from .JavaParser import JavaParser
 from antlr4 import *
 
 class JavaExtract(JavaParserListener):
@@ -50,7 +50,7 @@ class JavaExtract(JavaParserListener):
 
 
     def enterCatchType(self, ctx: JavaParser.CatchTypeContext):
-        exceptionList = ctx.qualifiedName().getText()
+        exceptionList = ctx.qualifiedName()
         for exception in exceptionList:
             exceptionName = exception.getText()
             self.exceptionNameList.append(exceptionName)

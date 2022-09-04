@@ -3,9 +3,7 @@
 *.interp
 
 # test file
-*.java
 *test*
-
 
 # config
 .DS_Store

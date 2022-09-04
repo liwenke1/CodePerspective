@@ -1,12 +1,11 @@
-import codecs
 import json
 import re
 import numpy as np
 from antlr4 import *
 
-from grammer.JavaParser import JavaParser
-from grammer.JavaLexer import JavaLexer
-from grammer.JavaExtract import JavaExtract
+from .grammer import JavaParser
+from .grammer import JavaLexer
+from .grammer import JavaExtract
 
 
 class FileParser():
@@ -16,7 +15,11 @@ class FileParser():
         self.walker = ParseTreeWalker()
 
 
-    def calaulateUsage(self, code):
+    def calaulateUsage(self, fileData):
+        code = ''
+        for line in fileData:
+            code += line
+
         # usage after jdk8
         rules_new = [
             r"\-\>", r"\.stream", r"Instant\.", r"LocalDate\.", r"LocalTime\.",
@@ -72,8 +75,8 @@ class FileParser():
         return comment
 
 
-    def calculateCommentRate(self, comment, file):
-        codeLength = len(file.readlines())
+    def calculateCommentRate(self, comment, fileData):
+        codeLength = len(fileData)
         return len(comment) / (codeLength - len(comment))
 
 
@@ -147,7 +150,7 @@ class FileParser():
     def extractAllIdentifier(self):
         identifierList = []
 
-        identifierList.append(self.listener.classNameList)
+        identifierList.extend(self.listener.classNameList)
         identifierList.extend(self.listener.classVariableNameList)
         for function in self.listener.functionList:
             identifierList.append(function['functionName'])
@@ -202,16 +205,16 @@ class FileParser():
                                    longFunctionRate, commentRate, roughExceptionRate):
         conscientiousness = []
 
-        if safetyUsageRate:
+        if safetyUsageRate != None:
             conscientiousness.append(safetyUsageRate)
         
-        if normalNamingRate:
+        if normalNamingRate != None:
             conscientiousness.append(normalNamingRate)
         
-        if longFunctionRate:
+        if longFunctionRate != None:
             conscientiousness.append(max((1 - 1.3 *longFunctionRate), 0))
         
-        if commentRate:
+        if commentRate != None:
             if commentRate < 1/3:
                 conscientiousness.append(5/3 * commentRate)
             elif commentRate < 2:
@@ -219,7 +222,7 @@ class FileParser():
             else:
                 conscientiousness.append(0.5 - 0.1 * commentRate)
         
-        if roughExceptionRate:
+        if roughExceptionRate != None:
             conscientiousness.append(1 - roughExceptionRate)
         
         return np.mean(conscientiousness)
@@ -228,7 +231,7 @@ class FileParser():
     def calculateExtroversion(self, commentRate):
         extroversion = []
 
-        if commentRate:
+        if commentRate != None:
             if commentRate < 1/3:
                 extroversion.append(5/3 * commentRate)
             elif commentRate < 2:
@@ -243,19 +246,19 @@ class FileParser():
                                roughExceptionRate):
         agreeableness = []
 
-        if newUsageRate:
+        if newUsageRate != None:
             if newUsageRate < 0.5:
                 agreeableness.append(0.5 - 0.5 * newUsageRate)
             else:
                 agreeableness.append(0.5 + 0.5 * newUsageRate)
 
-        if longFunctionRate:
+        if longFunctionRate != None:
             agreeableness.append(max((1 - 1.3 *longFunctionRate), 0))
 
-        if functionCallMethodRate:
+        if functionCallMethodRate != None:
             agreeableness.append(1 - 0.5 * functionCallMethodRate)
 
-        if roughExceptionRate:
+        if roughExceptionRate != None:
             agreeableness.append(1 - roughExceptionRate)
 
         return np.mean(agreeableness)
@@ -263,23 +266,23 @@ class FileParser():
     def calculateNeuroticism(self, normalNamingRate, localVariableVarience):
         neuroticism = []
 
-        if normalNamingRate:
+        if normalNamingRate != None:
             neuroticism.append(normalNamingRate)
 
-        if localVariableVarience:
-            neuroticism.append(localVariableVarience)
+        if localVariableVarience != None:
+            neuroticism.append(1 - localVariableVarience)
 
         return np.mean(neuroticism)
 
 
-    def parse(self, file):
-        fileBytes = file.read()
-        fileData = codecs.decode(fileBytes, encoding='ascii', errors='strict')
-        
+    def parse(self, filePath):
         # parse ast
-        tokenStream = CommonTokenStream(JavaLexer(InputStream(fileData)))
+        tokenStream = CommonTokenStream(JavaLexer(FileStream(filePath)))
         parser = JavaParser(tokenStream)
         self.walker.walk(self.listener, parser.compilationUnit())
+
+        with open(filePath, 'r') as fp:
+            fileData = fp.readlines()
 
         # extract code features
         newUsageRate, safetyUsageRate = self.calaulateUsage(fileData)
