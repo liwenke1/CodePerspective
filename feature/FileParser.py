@@ -41,7 +41,7 @@ class FileParser():
         oldUsageNumber = sum([len(re.findall(rule, code)) for rule in rules_old])
         safetyUsageNumber = sum([len(re.findall(rule, code)) for rule in rules_safety])
         
-        return newUsageNumber / (newUsageNumber + oldUsageNumber) if newUsageNumber + oldUsageNumber != 0 else 0
+        return newUsageNumber / (newUsageNumber + oldUsageNumber) if newUsageNumber + oldUsageNumber != 0 else None, None
 
 
     def extractStringOutput(self, code):
@@ -74,7 +74,7 @@ class FileParser():
 
     def calculateCommentRate(self, comment, file):
         codeLength = len(file.readlines())
-        return len(comment) / codeLength
+        return len(comment) / (codeLength - len(comment))
 
 
     def calculateLongFunctionRate(self):
@@ -157,7 +157,7 @@ class FileParser():
         return identifierList
 
 
-    def calculateEnglishLevelAndNormalRate(self):
+    def calculateEnglishLevelAndNormalNamingRate(self):
         identifierList = self.extractAllIdentifier()
 
         if len(identifierList) == 0:
@@ -194,6 +194,84 @@ class FileParser():
         return roughExceptNumber / self.listener.exceptionNumber
 
 
+    def calculateOpenness(self, newUsageRate):
+        return newUsageRate
+
+
+    def calculateConscientiousness(self, safetyUsageRate, normalNamingRate, 
+                                   longFunctionRate, commentRate, roughExceptionRate):
+        conscientiousness = []
+
+        if safetyUsageRate:
+            conscientiousness.append(safetyUsageRate)
+        
+        if normalNamingRate:
+            conscientiousness.append(normalNamingRate)
+        
+        if longFunctionRate:
+            conscientiousness.append(max((1 - 1.3 *longFunctionRate), 0))
+        
+        if commentRate:
+            if commentRate < 1/3:
+                conscientiousness.append(5/3 * commentRate)
+            elif commentRate < 2:
+                conscientiousness.append(0.5 + 0.25 * commentRate)
+            else:
+                conscientiousness.append(0.5 - 0.1 * commentRate)
+        
+        if roughExceptionRate:
+            conscientiousness.append(1 - roughExceptionRate)
+        
+        return np.mean(conscientiousness)
+
+
+    def calculateExtroversion(self, commentRate):
+        extroversion = []
+
+        if commentRate:
+            if commentRate < 1/3:
+                extroversion.append(5/3 * commentRate)
+            elif commentRate < 2:
+                extroversion.append(0.5 + 0.25 * commentRate)
+            else:
+                extroversion.append(0.5 - 0.1 * commentRate)
+
+        return np.mean(extroversion)
+
+
+    def calculateAgreeableness(self, newUsageRate, longFunctionRate, functionCallMethodRate,
+                               roughExceptionRate):
+        agreeableness = []
+
+        if newUsageRate:
+            if newUsageRate < 0.5:
+                agreeableness.append(0.5 - 0.5 * newUsageRate)
+            else:
+                agreeableness.append(0.5 + 0.5 * newUsageRate)
+
+        if longFunctionRate:
+            agreeableness.append(max((1 - 1.3 *longFunctionRate), 0))
+
+        if functionCallMethodRate:
+            agreeableness.append(1 - 0.5 * functionCallMethodRate)
+
+        if roughExceptionRate:
+            agreeableness.append(1 - roughExceptionRate)
+
+        return np.mean(agreeableness)
+
+    def calculateNeuroticism(self, normalNamingRate, localVariableVarience):
+        neuroticism = []
+
+        if normalNamingRate:
+            neuroticism.append(normalNamingRate)
+
+        if localVariableVarience:
+            neuroticism.append(localVariableVarience)
+
+        return np.mean(neuroticism)
+
+
     def parse(self, file):
         fileBytes = file.read()
         fileData = codecs.decode(fileBytes, encoding='ascii', errors='strict')
@@ -203,4 +281,22 @@ class FileParser():
         parser = JavaParser(tokenStream)
         self.walker.walk(self.listener, parser.compilationUnit())
 
-        #TODO: extract feature
+        # extract code features
+        newUsageRate, safetyUsageRate = self.calaulateUsage(fileData)
+        commentRate = self.calculateCommentRate(self.extractComment(tokenStream), fileData)
+        longFunctionRate = self.calculateLongFunctionRate()
+        localVariableVarience = self.calculateVariableLocationVariance()
+        englishLevel, normalNamingRate = self.calculateEnglishLevelAndNormalNamingRate()
+        functionCallMethodRate = self.calculateFunctionCallMethod()
+        roughExceptionRate = self.calculateRoughExceptionRate()
+
+        # calculate psychological features
+        openness = self.calculateOpenness(newUsageRate)
+        conscientiousness = self.calculateConscientiousness(safetyUsageRate, normalNamingRate, longFunctionRate, 
+                                                            commentRate, roughExceptionRate)
+        extroversion = self.calculateExtroversion(commentRate)
+        agreeableness = self.calculateAgreeableness(newUsageRate, longFunctionRate, functionCallMethodRate,
+                                                    roughExceptionRate)
+        neuroticism = self.calculateNeuroticism(normalNamingRate, localVariableVarience)
+
+        return openness, conscientiousness, extroversion, agreeableness, neuroticism
