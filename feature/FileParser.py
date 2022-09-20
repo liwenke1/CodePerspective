@@ -1,6 +1,7 @@
 import json
 import re
 import numpy as np
+import chardet
 from antlr4 import *
 
 from .grammer import JavaParser
@@ -101,8 +102,11 @@ class FileParser():
             functionLength = function['functionEndLine'] - function['functionStartLine'] + 1
             for variable in function['localVariableList']:
                 variableRelativeLocationAfterNorm.append((variable['Line'] - function['functionStartLine'] + 1) / functionLength)
-        variableVariance = np.std(variableRelativeLocationAfterNorm)
+        
+        if len(variableRelativeLocationAfterNorm) == 0:
+            return None
 
+        variableVariance = np.std(variableRelativeLocationAfterNorm)
         return variableVariance
 
 
@@ -220,11 +224,14 @@ class FileParser():
             elif commentRate < 2:
                 conscientiousness.append(0.5 + 0.25 * commentRate)
             else:
-                conscientiousness.append(0.5 - 0.1 * commentRate)
+                conscientiousness.append(max(0.5 - 0.1 * commentRate, 0))
         
         if roughExceptionRate != None:
             conscientiousness.append(1 - roughExceptionRate)
         
+        if len(conscientiousness) == 0:
+            return None
+
         return np.mean(conscientiousness)
 
 
@@ -237,7 +244,10 @@ class FileParser():
             elif commentRate < 2:
                 extroversion.append(0.5 + 0.25 * commentRate)
             else:
-                extroversion.append(0.5 - 0.1 * commentRate)
+                extroversion.append(max(0.5 - 0.1 * commentRate, 0))
+
+        if len(extroversion) == 0:
+            return None
 
         return np.mean(extroversion)
 
@@ -261,6 +271,9 @@ class FileParser():
         if roughExceptionRate != None:
             agreeableness.append(1 - roughExceptionRate)
 
+        if len(agreeableness) == 0:
+            return None
+
         return np.mean(agreeableness)
 
     def calculateNeuroticism(self, normalNamingRate, localVariableVarience):
@@ -270,18 +283,28 @@ class FileParser():
             neuroticism.append(normalNamingRate)
 
         if localVariableVarience != None:
-            neuroticism.append(1 - localVariableVarience)
+            neuroticism.append(max(1 - localVariableVarience, 0))
+
+        if len(neuroticism) == 0:
+            return None
 
         return np.mean(neuroticism)
 
 
     def parse(self, filePath):
+        with open(filePath, 'rb') as fp:
+            file = fp.read()
+        fileMode = chardet.detect(file)["encoding"]
+
+        with open(filePath, 'r', encoding=fileMode) as fp:
+            file = fp.read()
+
         # parse ast
-        tokenStream = CommonTokenStream(JavaLexer(FileStream(filePath)))
+        tokenStream = CommonTokenStream(JavaLexer(InputStream(file)))
         parser = JavaParser(tokenStream)
         self.walker.walk(self.listener, parser.compilationUnit())
 
-        with open(filePath, 'r') as fp:
+        with open(filePath, 'r', encoding=fileMode) as fp:
             fileData = fp.readlines()
 
         # extract code features
@@ -290,7 +313,7 @@ class FileParser():
         longFunctionRate = self.calculateLongFunctionRate()
         localVariableVarience = self.calculateVariableLocationVariance()
         englishLevel, normalNamingRate = self.calculateEnglishLevelAndNormalNamingRate()
-        functionCallMethodRate = self.calculateFunctionCallMethod()
+        lambdaFunctionCallMethodRate = self.calculateLambdaFunctionCallMethod()
         roughExceptionRate = self.calculateRoughExceptionRate()
 
         # calculate psychological features
@@ -298,8 +321,10 @@ class FileParser():
         conscientiousness = self.calculateConscientiousness(safetyUsageRate, normalNamingRate, longFunctionRate, 
                                                             commentRate, roughExceptionRate)
         extroversion = self.calculateExtroversion(commentRate)
-        agreeableness = self.calculateAgreeableness(newUsageRate, longFunctionRate, functionCallMethodRate,
+        agreeableness = self.calculateAgreeableness(newUsageRate, longFunctionRate, lambdaFunctionCallMethodRate,
                                                     roughExceptionRate)
         neuroticism = self.calculateNeuroticism(normalNamingRate, localVariableVarience)
 
-        return openness, conscientiousness, extroversion, agreeableness, neuroticism
+        return [newUsageRate, safetyUsageRate, commentRate, longFunctionRate, localVariableVarience,
+                englishLevel, normalNamingRate, lambdaFunctionCallMethodRate, roughExceptionRate], \
+                openness, conscientiousness, extroversion, agreeableness, neuroticism

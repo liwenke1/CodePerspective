@@ -4,6 +4,8 @@
 
 # test file
 *test*
+dataset/
+report/
 
 # config
 .DS_Store
@@ -11,3 +13,6 @@
 
 # compile file
 __pycache__/
+
+# log file
+*.log
