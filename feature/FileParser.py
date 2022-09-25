@@ -1,4 +1,6 @@
+from collections import Counter
 import json
+import math
 import re
 import numpy as np
 import chardet
@@ -182,7 +184,7 @@ class FileParser():
         return englishLevel, normalIdentifierNumber / len(identifierList)
 
 
-    def calculateFunctionCallMethod(self):
+    def calculateLambdaFunctionCallMethod(self):
         if self.listener.lambdaFunctionNumber + self.listener.functionNumber == 0:
             return None
 
@@ -199,6 +201,28 @@ class FileParser():
                 roughExceptNumber += 1
 
         return roughExceptNumber / self.listener.exceptionNumber
+
+
+    def calWordFrequency(self, text):
+        word = re.split('\s+', text)
+        wordFrequency = Counter(word)
+        wordTF = {}
+        for word, frequency in wordFrequency.items():
+            wordTF[word] = frequency/len(word)
+        return wordTF
+
+
+    def calTernaryOperatorRate(self, text):
+        return math.log(self.listener.ternaryOperatorNumber / len(text))
+
+
+    def calTokenRate(self, text):
+        token = re.split('[*;\\{\\}\\[\\]()+=\\-&/|%!?:,<>~`\\s\"]', text)
+        return math.log(len(token) / len(text))
+
+
+    def calControlStructureRate(self, text):
+        return math.log(self.listener.controlStructureNumber / len(text))
 
 
     def calculateOpenness(self, newUsageRate):

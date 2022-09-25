@@ -27,6 +27,8 @@ class JavaExtract(JavaParserListener):
         self.exceptionNameList = []
         self.packageNumber = 0
         self.packageNameList = []
+        self.ternaryOperatorNumber = 0
+        self.controlStructureNumber = 0
 
 
     def enterPackageDeclaration(self, ctx: JavaParser.PackageDeclarationContext):
@@ -152,3 +154,24 @@ class JavaExtract(JavaParserListener):
     def enterLambdaExpression(self, ctx: JavaParser.LambdaExpressionContext):
         self.lambdaFunctionNumber += 1
         return super().enterLambdaExpression(ctx)
+
+    def enterExpression(self, ctx: JavaParser.ExpressionContext):
+        # ternary operator  ->  ? :
+        if ctx.bop.text == '?':
+            self.ternaryOperatorNumber += 1
+        return super().enterExpression(ctx)
+
+    def enterStatement(self, ctx: JavaParser.StatementContext):
+        if ctx.IF():
+            self.controlStructureNumber += 1
+        elif ctx.ELSE():
+            self.controlStructureNumber += 1
+        elif ctx.DO():
+            self.controlStructureNumber += 1
+        elif ctx.WHILE():
+            self.controlStructureNumber += 1
+        elif ctx.FOR():
+            self.controlStructureNumber += 1
+        elif ctx.SWITCH():
+            self.controlStructureNumber += 1
+        return super().enterStatement(ctx)
