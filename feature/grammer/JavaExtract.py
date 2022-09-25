@@ -29,7 +29,7 @@ class JavaExtract(JavaParserListener):
         self.packageNameList = []
         self.ternaryOperatorNumber = 0
         self.controlStructureNumber = 0
-
+        self.literalNumber = 0
 
     def enterPackageDeclaration(self, ctx: JavaParser.PackageDeclarationContext):
         packageName = ctx.qualifiedName().getText()
@@ -74,12 +74,57 @@ class JavaExtract(JavaParserListener):
         functionBody = ctx.getText()
         functionStartLine = ctx.start.line
         functionEndLine = ctx.stop.line
+
+        # capture params
+        functionParams = []
+        # capture params   --- receiver parameter
+        if ctx.formalParameters().receiverParameter():
+            params = ctx.formalParameters().receiverParameter()
+            typeName = params.typeType().getText()
+            identifiers = params.identifier().getText()
+            if isinstance(identifiers, list):
+                for identifier in identifiers:
+                    functionParams.append({
+                        'type': typeName,
+                        'identifier': identifier
+                    })
+            else:
+                functionParams.append({
+                    'type': typeName,
+                    'identifier': identifiers
+                })
+
+        # capture params   --- formal parameter
+        if ctx.formalParameters().formalParameterList():
+            params = ctx.formalParameters().formalParameterList()
+            if params.lastFormalParameter():
+                lastParam = params.lastFormalParameter()
+                functionParams.append({
+                    'type': lastParam.typeType().getText(),
+                    'identifier': lastParam.variableDeclaratorId().getText()
+                })
+            if params.formalParameter():
+                formalParams = params.formalParameter()
+                if isinstance(formalParams, list):
+                    for formalParam in formalParams:
+                        functionParams.append({
+                            'type': formalParam.typeType().getText(),
+                            'identifier': formalParam.variableDeclaratorId().getText()
+                        })
+                else:
+                    functionParams.append({
+                        'type': formalParams.typeType().getText(),
+                        'identifier': formalParams.variableDeclaratorId().getText()
+                    })
+
+        # summarize unction information
         self.functionList.append(
             {
                 'functionName': functionName,
                 'functionBody': functionBody,
                 'functionStartLine': functionStartLine,
                 'functionEndLine': functionEndLine,
+                'functionParams': functionParams,
                 'localVariableList': [],
                 'functionCallList': []
             }
@@ -155,11 +200,13 @@ class JavaExtract(JavaParserListener):
         self.lambdaFunctionNumber += 1
         return super().enterLambdaExpression(ctx)
 
+
     def enterExpression(self, ctx: JavaParser.ExpressionContext):
         # ternary operator  ->  ? :
         if ctx.bop.text == '?':
             self.ternaryOperatorNumber += 1
         return super().enterExpression(ctx)
+
 
     def enterStatement(self, ctx: JavaParser.StatementContext):
         if ctx.IF():
@@ -175,3 +222,8 @@ class JavaExtract(JavaParserListener):
         elif ctx.SWITCH():
             self.controlStructureNumber += 1
         return super().enterStatement(ctx)
+
+    
+    def enterLiteral(self, ctx: JavaParser.LiteralContext):
+        self.literalNumber += 1
+        return super().enterLiteral(ctx)

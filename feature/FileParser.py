@@ -80,7 +80,7 @@ class FileParser():
 
     def calculateCommentRate(self, comment, fileData):
         codeLength = len(fileData)
-        return len(comment) / (codeLength - len(comment))
+        return math.log(len(comment) / (codeLength - len(comment)))
 
 
     def calculateLongFunctionRate(self):
@@ -223,6 +223,35 @@ class FileParser():
 
     def calControlStructureRate(self, text):
         return math.log(self.listener.controlStructureNumber / len(text))
+        
+
+    def calLiteralRate(self, text):
+        return math.log(self.listener.literalNumber / len(text))
+
+
+    def calKeywordRate(self, tokenStream, text):
+        tokenNumber = 0
+        for token in tokenStream.tokens:
+            if token.type >= 1 and token.type <= 66:
+                tokenNumber += 1
+        return math.log(tokenNumber / len(text))
+
+
+    def calFunctionRate(self, text):
+        return math.log(self.listener.functionNumber / len(text))
+
+
+    def calParamsAvgAndStandardDev(self):
+        paramNumeber = []
+        for function in self.listener.functionList:
+            paramNumeber.append(len(function['functionParams']))
+        
+        return sum(paramNumeber) / len(paramNumeber), np.std(paramNumeber)
+
+
+    def calLineLengthAvgAndStandardDev(self, fileData):
+        lineLength = [len(line) for line in fileData]
+        return sum(lineLength) / len(lineLength), np.std(lineLength)
 
 
     def calculateOpenness(self, newUsageRate):
