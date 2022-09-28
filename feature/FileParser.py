@@ -343,6 +343,35 @@ class FileParser():
 
         return np.mean(neuroticism)
 
+        def calculateBlankline(self, filepath):
+        统计源文件的代码行数, 注释行数等
+        self.row_count = blank_count = self.note_count = self.code_count = 0
+        with open(filepath) as file:
+            lines = file.read().strip().split('\n')  # 一次性读取一个文件,并用换行分割每一行
+            self.row_count += len(lines)
+        for line in lines:
+            if line == '':
+                self.blank_count += 1
+                continue
+            noteline = re.match(r'^/(.*)|^\*(.*)|(.*)\*/$', line.strip(), flags=0)  # 匹配以/、/* 、*开头 或*/结尾的注释行
+            if noteline is None:  # 匹配为代码行
+                self.code_count += 1
+            else:
+                self.note_count += 1
+        return
+    def calculateTabsspaces(self, filePath):
+        fd = open(filePath)
+        i = 0
+        spaces = 0
+        tabs = 0
+        for i, line in enumerate(fd):
+            spaces += line.count(' ')
+            tabs += line.count('\t')
+        # 关闭打开的文件
+        fd.close()
+        # 以元祖的形式返回结果
+        return spaces, tabs, i + 1
+    def calculate
 
     def parse(self, filePath):
         with open(filePath, 'rb') as fp:
