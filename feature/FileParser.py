@@ -68,7 +68,7 @@ class FileParser():
         return stringOutput
 
 
-    def extractComment(self, tokenStream):
+    def extractComment(self, tokenStream: CommonTokenStream):
         comment = []
 
         for token in tokenStream.tokens:
@@ -229,7 +229,7 @@ class FileParser():
         return math.log(self.listener.literalNumber / len(text))
 
 
-    def calKeywordRate(self, tokenStream, text):
+    def calKeywordRate(self, tokenStream: CommonTokenStream, text):
         tokenNumber = 0
         for token in tokenStream.tokens:
             if token.type >= 1 and token.type <= 66:
@@ -252,6 +252,62 @@ class FileParser():
     def calLineLengthAvgAndStandardDev(self, fileData):
         lineLength = [len(line) for line in fileData]
         return sum(lineLength) / len(lineLength), np.std(lineLength)
+
+
+    def calBlanklineRate(self, fileData):
+        blankCount = 0
+        bufferCount = 0
+        leadingFlag = False
+        for line in fileData:
+            if re.fullmatch('[\s]*', line):
+                if leadingFlag:
+                    bufferCount += 1
+            else:
+                blankCount += bufferCount
+                bufferCount = 1
+                leadingFlag = True
+
+        return math.log(blankCount / len(fileData))
+
+
+    # return tabRate, spaceRate, and whiteSpaceRate
+    def calWhiteSpacesRate(self, text):
+        tabCount = len(re.findall('\\t', text))
+        spaceCount = len(re.findall(' ', text))
+        newLineCount = len(re.findall('\\n', text))
+        return math.log(tabCount / len(text)), math.log(spaceCount / len(text)), math.log((tabCount + spaceCount + newLineCount) / len(text))
+
+
+    # return > 0 : tabIndent majority   
+    # return < 0 : spaceIndent majority
+    def IsTabOrSpaceIndent(self, fileData):
+        tabIndent = 0
+        spaceIndent = 0
+        for line in fileData:
+            if line.startswith('\\t'):
+                tabIndent += 1
+            elif line.startswith(' '):
+                spaceIndent += 1
+
+        return tabIndent > spaceIndent
+
+
+    # return > 0 : newLine majority Before Open Brace
+    # return < 0 : OnLine majority Before Open Brace
+    def IsNewLineOrOnLineBeforeOpenBrance(self, tokenStream: CommonTokenStream):
+        newLineCount = 0
+        onLineCount = 0
+        for token in tokenStream.tokens:
+            if token.text != '{':
+                continue
+            previousLetterIndex = tokenStream.previousTokenOnChannel(token.tokenIndex, 0)
+            previousNewLineIndex = tokenStream.previousTokenOnChannel(token.tokenIndex, 2)
+            if previousNewLineIndex > previousLetterIndex:
+                newLineCount += 1
+            elif previousNewLineIndex < previousLetterIndex:
+                onLineCount += 1
+
+        return newLineCount > onLineCount
 
 
     def calculateOpenness(self, newUsageRate):
@@ -343,35 +399,6 @@ class FileParser():
 
         return np.mean(neuroticism)
 
-        def calculateBlankline(self, filepath):
-        统计源文件的代码行数, 注释行数等
-        self.row_count = blank_count = self.note_count = self.code_count = 0
-        with open(filepath) as file:
-            lines = file.read().strip().split('\n')  # 一次性读取一个文件,并用换行分割每一行
-            self.row_count += len(lines)
-        for line in lines:
-            if line == '':
-                self.blank_count += 1
-                continue
-            noteline = re.match(r'^/(.*)|^\*(.*)|(.*)\*/$', line.strip(), flags=0)  # 匹配以/、/* 、*开头 或*/结尾的注释行
-            if noteline is None:  # 匹配为代码行
-                self.code_count += 1
-            else:
-                self.note_count += 1
-        return
-    def calculateTabsspaces(self, filePath):
-        fd = open(filePath)
-        i = 0
-        spaces = 0
-        tabs = 0
-        for i, line in enumerate(fd):
-            spaces += line.count(' ')
-            tabs += line.count('\t')
-        # 关闭打开的文件
-        fd.close()
-        # 以元祖的形式返回结果
-        return spaces, tabs, i + 1
-    def calculate
 
     def parse(self, filePath):
         with open(filePath, 'rb') as fp:
