@@ -203,7 +203,7 @@ class JavaExtract(JavaParserListener):
 
     def enterExpression(self, ctx: JavaParser.ExpressionContext):
         # ternary operator  ->  ? :
-        if ctx.bop.text == '?':
+        if ctx.bop and ctx.bop.text == '?':
             self.ternaryOperatorNumber += 1
         return super().enterExpression(ctx)
 

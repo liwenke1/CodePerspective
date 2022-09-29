@@ -69,18 +69,43 @@ class FileParser():
 
 
     def extractComment(self, tokenStream: CommonTokenStream):
-        comment = []
+        commentList = []
 
         for token in tokenStream.tokens:
             if token.channel == 4:
-                comment.append(token.text)
+                commentList.append(token.text)
 
-        return comment
+        return commentList
 
 
-    def calculateCommentRate(self, comment, fileData):
-        codeLength = len(fileData)
-        return math.log(len(comment) / (codeLength - len(comment)))
+    def judgeCommentType(self, comment):
+        if comment.startswith('//'):
+            return 'SingleLine'
+        elif comment.startswith('/**'):
+            return 'Documentation'
+        elif comment.startswith('//'):
+            return 'MultiLine'
+        return 'None'
+
+    def calculateCommentRateAndTypeTermFrequency(self, commentList, text):
+        commentLength = 0
+        commentTypeCount = {
+            'SingleLine': 0,
+            'MultiLine': 0,
+            'Documentation': 0,
+            'None': 0
+        }
+        for comment in commentList:
+            commentLength += len(comment)
+            commentType = self.judgeCommentType(comment)
+            commentTypeCount[commentType] += 1
+
+        commentTypeCount.pop('None')
+        commentTypeTotalCount = sum(commentTypeCount.values())
+        commentTypeTermFrequency = {}
+        for commentType in commentTypeCount.keys():
+            commentTypeTermFrequency[commentType] = commentTypeCount[commentType] / commentTypeTotalCount
+        return math.log(commentLength / len(text)), commentTypeTermFrequency
 
 
     def calculateLongFunctionRate(self):
@@ -129,13 +154,15 @@ class FileParser():
         return englishScore / englishUsageTime if englishUsageTime != 0 else 0
 
 
-    def extractWordAndNamingConvention(self, identifier):
-        ''' 
-        Support Cammel and UnderScore Naming Convention
-        
-        Tip: When identifier is only a word, we assume its naming convention is UnderScore
-        '''
-        
+    def IsAWord(self, identifier):
+        aWord = re.compile('[a-z0-9]+')
+        if aWord.match(identifier):
+            return True
+        else:
+            return False
+
+
+    def extractWordAccordingToCammel(self, identifier):
         cammelPattern = re.compile('([a-z0-9]+|[A-Z][a-z0-9]+)((?:[A-Z0-9][a-z0-9]*)*)')
         result = cammelPattern.match(identifier)
         if result:
@@ -144,24 +171,24 @@ class FileParser():
             for word in re.findall('[A-Z0-9][a-z0-9]*', result.group(2)):
                 wordList.append(word)
             return wordList, True
-            
-        underScorePattern = re.compile('[a-z0-9]+(_[a-z0-9]+)')
-        if underScorePattern.match(identifier):
-            wordList = identifier.split('_')
-            return wordList, True
 
         return None, False
 
 
-    def extractAllIdentifier(self):
-        identifierList = []
+    def extractWordAccordingToUnderScore(self, identifier):
+        underScorePattern = re.compile('[a-z0-9]+(_[a-z0-9]+)')
+        if underScorePattern.match(identifier):
+            wordList = identifier.split('_')
+            return wordList, True
+        
+        return None, False
 
-        identifierList.extend(self.listener.classNameList)
-        identifierList.extend(self.listener.classVariableNameList)
-        for function in self.listener.functionList:
-            identifierList.append(function['functionName'])
-            for variable in function['localVariableList']:
-                identifierList.append(variable['variableName'])
+
+    def extractAllIdentifier(self, tokenStream: CommonTokenStream):
+        identifierList = []
+        for token in tokenStream.tokens:
+            if token.type == 129:
+                identifierList.append(token.text)
         
         return identifierList
 
@@ -172,16 +199,29 @@ class FileParser():
         if len(identifierList) == 0:
             return None, None
 
-        normalIdentifierNumber = 0
         wordList = []
+        cammelIdentifierNumber = 0
+        underScoreIdentifierNumber = 0
         for identifier in identifierList:
-            wordFromIdentifier, isNormal = self.extractWordAndNamingConvention(identifier)
+            # filter out the identifier which consists of one word
+            if self.IsAWord(identifier):
+                continue
+
+            wordFromIdentifier, isNormal = self.extractWordAccordingToCammel(identifier)
             if isNormal:
                 wordList.extend(wordFromIdentifier)
-                normalIdentifierNumber += 1
+                cammelIdentifierNumber += 1
+                continue
+
+            wordFromIdentifier, isNormal = self.extractWordAccordingToUnderScore(identifier)
+            if isNormal:
+                wordList.extend(wordFromIdentifier)
+                underScoreIdentifierNumber += 1
+                continue
+
         englishLevel = self.analyseEnglishLevel(wordList)
 
-        return englishLevel, normalIdentifierNumber / len(identifierList)
+        return englishLevel, cammelIdentifierNumber / len(wordList), underScoreIdentifierNumber / len(wordList)
 
 
     def calculateLambdaFunctionCallMethod(self):
@@ -203,7 +243,7 @@ class FileParser():
         return roughExceptNumber / self.listener.exceptionNumber
 
 
-    def calWordFrequency(self, fileData):
+    def calWordTermFrequencyAndCountOfLine(self, fileData):
         word = []
         wordCountOfLine = []
         
@@ -354,6 +394,17 @@ class FileParser():
         return keywordTermFrequency, ASTLeavesTermFrequency
 
 
+    def calIndentifierLengthFrequency(self, tokenStream: CommonTokenStream):
+        identifierLength = []
+        for token in tokenStream.tokens:
+            if token.type == 129:
+                identifierLength.append(len(token.text))
+        
+        identifierLengthCount = Counter(identifierLength)
+
+        return identifierLengthCount
+
+
     def calculateOpenness(self, newUsageRate):
         return newUsageRate
 
@@ -462,7 +513,7 @@ class FileParser():
 
         # extract code features
         newUsageRate, safetyUsageRate = self.calaulateUsage(fileData)
-        commentRate = self.calculateCommentRate(self.extractComment(tokenStream), fileData)
+        commentRate = self.calculateCommentRateAndTypeTermFrequency(self.extractComment(tokenStream), file)
         longFunctionRate = self.calculateLongFunctionRate()
         localVariableVarience = self.calculateVariableLocationVariance()
         englishLevel, normalNamingRate = self.calculateEnglishLevelAndNormalNamingRate()
