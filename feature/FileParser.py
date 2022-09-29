@@ -203,13 +203,23 @@ class FileParser():
         return roughExceptNumber / self.listener.exceptionNumber
 
 
-    def calWordFrequency(self, text):
-        word = re.split('\s+', text)
+    def calWordFrequency(self, fileData):
+        word = []
+        wordCountOfLine = []
+        
+        for line in fileData:
+            wordOfLine = re.split('\s+', line)
+            word.extend(wordOfLine)
+            wordCountOfLine.append(len(wordOfLine))
+        
         wordFrequency = Counter(word)
-        wordTF = {}
+        wordTermFrequency = {}
         for word, frequency in wordFrequency.items():
-            wordTF[word] = frequency/len(word)
-        return wordTF
+            wordTermFrequency[word] = frequency/len(word)
+
+        wordCountOfLineFrequency = Counter(wordCountOfLine)
+
+        return wordTermFrequency, wordCountOfLineFrequency
 
 
     def calTernaryOperatorRate(self, text):
@@ -251,7 +261,9 @@ class FileParser():
 
     def calLineLengthAvgAndStandardDev(self, fileData):
         lineLength = [len(line) for line in fileData]
-        return sum(lineLength) / len(lineLength), np.std(lineLength)
+        lineLengthCount = Counter(lineLength)
+        
+        return sum(lineLength) / len(lineLength), np.std(lineLength), lineLengthCount
 
 
     def calBlanklineRate(self, fileData):
