@@ -310,6 +310,38 @@ class FileParser():
         return newLineCount > onLineCount
 
 
+    # Return AST Leaves TF And Keyword TF
+    # AST Leaves consist of 130 types
+    # java has 65 kinds of keyword
+    def calASTLeavesAndKeywordTermFrequency(self, tokenStream: CommonTokenStream):
+        ASTLeavesTypeCount = []
+        for token in tokenStream.tokens:
+            ASTLeavesTypeCount += token.type
+
+        # ASTLeavesCount:
+        # index 0 : Unknown
+        # index 1-65: keyword
+        # index 66-129: operator identifier comment
+        ASTLeavesCount = Counter(ASTLeavesTypeCount)
+
+        keywordTotalCount = 0
+        for index in ASTLeavesCount.keys():
+            if index >= 1 and index <= 65:
+                keywordTotalCount += 1
+
+        keywordTermFrequency = dict()
+        for index in ASTLeavesCount.keys():
+            if index >= 1 and index <= 65:
+                keywordTermFrequency[index] = ASTLeavesCount[index] / keywordTotalCount
+
+        ASTLeavesTotalCount = len(ASTLeavesTypeCount)
+        ASTLeavesTermFrequency = dict()
+        for index in ASTLeavesCount.keys():
+            ASTLeavesTermFrequency[index] = ASTLeavesCount[index] / ASTLeavesTotalCount
+
+        return keywordTermFrequency, ASTLeavesTermFrequency
+
+
     def calculateOpenness(self, newUsageRate):
         return newUsageRate
 
