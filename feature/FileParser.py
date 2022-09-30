@@ -108,16 +108,15 @@ class FileParser():
         return math.log(commentLength / len(text)), commentTypeTermFrequency
 
 
-    def calculateLongFunctionRate(self):
+    def calculateFunctionAvgLength(self):
         if self.listener.functionNumber == 0:
             return None
         
         functionLength = []
         for function in self.listener.functionList:
             functionLength.append(function['functionEndLine'] - function['functionStartLine'] + 1)
-        longFunctionNumber = sum(length > 50 for length in functionLength)
 
-        return longFunctionNumber / self.listener.functionNumber
+        return np.average(functionLength)
 
 
     def calculateVariableLocationVariance(self):
