@@ -177,6 +177,11 @@ class JavaExtract(JavaParserListener):
             variableName = variable.variableDeclaratorId().getText()
             variableLine = variable.start.line
             variableColumn = variable.start.column
+            
+            # bug: unhandle "static {int a = 4;}"
+            if len(self.functionList) == 0:
+                break
+            
             self.functionList[-1]['localVariableList'].append(
                 {
                     'variableName': variableName,
@@ -188,7 +193,8 @@ class JavaExtract(JavaParserListener):
 
 
     def enterMethodCall(self, ctx: JavaParser.MethodCallContext):
-        functionCallName = ctx.identifier().getText()
+        if ctx.identifier():
+            functionCallName = ctx.identifier().getText()
         functionCallLine = ctx.start.line
         functionCallColumn = ctx.start.column
 

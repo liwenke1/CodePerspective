@@ -5,7 +5,7 @@
 # test file
 *test*
 dataset/
-report/
+report*/
 
 # config
 .DS_Store

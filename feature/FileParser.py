@@ -90,6 +90,9 @@ class FileParser():
 
 
     def calculateCommentRateAndTypeTermFrequency(self, commentList, text):
+        if len(commentList) == 0:
+            return 0, None
+
         commentLength = 0
         commentTypeCount = {
             'SingleLine': 0,
@@ -104,6 +107,10 @@ class FileParser():
 
         commentTypeCount.pop('None')
         commentTypeTotalCount = sum(commentTypeCount.values())
+
+        if commentTypeTotalCount == 0:
+            return math.log(commentLength / len(text)), None
+
         commentTypeTermFrequency = {}
         for commentType in commentTypeCount.keys():
             commentTypeTermFrequency[commentType] = commentTypeCount[commentType] / commentTypeTotalCount
@@ -194,13 +201,17 @@ class FileParser():
         return identifierList
 
 
-    def calculateEnglishLevelAndNormalNamingRate(self):
-        identifierList = self.extractAllIdentifier()
+    def calculateEnglishLevelAndNormalNamingRate(self, tokenStream):
+        identifierList = self.extractAllIdentifier(tokenStream)
 
         if len(identifierList) == 0:
-            return None, None
+            return None, None, None
 
         wordList = []
+        
+        if len(wordList) == 0:
+            return None, None, None
+
         cammelIdentifierNumber = 0
         underScoreIdentifierNumber = 0
         for identifier in identifierList:
@@ -253,10 +264,14 @@ class FileParser():
             word.extend(wordOfLine)
             wordCountOfLine.append(len(wordOfLine))
         
+        if len(word) == 0:
+            return None, None
+
         wordFrequency = Counter(word)
+        wordTotalCount = len(word)
         wordTermFrequency = {}
         for word, frequency in wordFrequency.items():
-            wordTermFrequency[word] = frequency/len(word)
+            wordTermFrequency[word] = frequency / wordTotalCount
 
         wordCountOfLineFrequency = Counter(wordCountOfLine)
 
@@ -264,20 +279,36 @@ class FileParser():
 
 
     def calTernaryOperatorRate(self, text):
-        return math.log(self.listener.ternaryOperatorNumber / len(text))
+        ternaryOperatorRate = self.listener.ternaryOperatorNumber / len(text)
+        if ternaryOperatorRate == 0:
+            return None
+        else:
+            return math.log(ternaryOperatorRate)
 
 
     def calTokenRate(self, text):
         token = re.split('[*;\\{\\}\\[\\]()+=\\-&/|%!?:,<>~`\\s\"]', text)
-        return math.log(len(token) / len(text))
+        tokenRate = len(token) / len(text)
+        if tokenRate == 0:
+            return None
+        else:
+            return math.log(tokenRate)
 
 
     def calControlStructureRate(self, text):
-        return math.log(self.listener.controlStructureNumber / len(text))
+        controlStructureNumberRate = self.listener.controlStructureNumber / len(text)
+        if controlStructureNumberRate == 0:
+            return None
+        else:
+            return math.log(controlStructureNumberRate)
         
 
     def calLiteralRate(self, text):
-        return math.log(self.listener.literalNumber / len(text))
+        literalNumberRate = self.listener.literalNumber / len(text)
+        if literalNumberRate == 0:
+            return None
+        else:
+            return math.log(literalNumberRate)
 
 
     def calKeywordRate(self, tokenStream: CommonTokenStream, text):
@@ -285,11 +316,17 @@ class FileParser():
         for token in tokenStream.tokens:
             if token.type >= 1 and token.type <= 66:
                 tokenNumber += 1
-        return math.log(tokenNumber / len(text))
+        tokenNumberRate = tokenNumber / len(text)
+        if tokenNumberRate == 0:
+            return None
+        else:
+            return math.log(tokenNumberRate)
 
 
     def calFunctionRate(self, text):
-        return math.log(self.listener.functionNumber / len(text))
+        functionNumberTermRate = self.listener.functionNumber / len(text)
+        functionNumberRate = math.log(functionNumberTermRate) if functionNumberTermRate != 0 else None
+        return functionNumberRate
 
 
     def calParamsAvgAndStandardDev(self):
@@ -297,6 +334,9 @@ class FileParser():
         for function in self.listener.functionList:
             paramNumeber.append(len(function['functionParams']))
         
+        if len(paramNumeber) == 0:
+            return 0.0, 0.0
+
         return sum(paramNumeber) / len(paramNumeber), np.std(paramNumeber)
 
 
@@ -325,10 +365,15 @@ class FileParser():
 
     # return tabRate, spaceRate, and whiteSpaceRate
     def calWhiteSpacesRate(self, text):
-        tabCount = len(re.findall('\\t', text))
-        spaceCount = len(re.findall(' ', text))
-        newLineCount = len(re.findall('\\n', text))
-        return math.log(tabCount / len(text)), math.log(spaceCount / len(text)), math.log((tabCount + spaceCount + newLineCount) / len(text))
+        tabTermCount = len(re.findall('\\t', text)) / len(text)
+        spaceTermCount = len(re.findall(' ', text)) / len(text)
+        newLineTermCount = len(re.findall('\\n', text)) / len(text)
+
+        tabCountRate = math.log(tabTermCount) if tabTermCount != 0 else None
+        spaceCountRate = math.log(spaceTermCount) if spaceTermCount != 0 else None
+        newLineCountRate = math.log(newLineTermCount) if newLineTermCount != 0 else None
+
+        return tabCountRate, spaceCountRate, newLineCountRate
 
 
     # return > 0 : tabIndent majority   
@@ -369,7 +414,7 @@ class FileParser():
     def calASTLeavesAndKeywordTermFrequency(self, tokenStream: CommonTokenStream):
         ASTLeavesTypeCount = []
         for token in tokenStream.tokens:
-            ASTLeavesTypeCount += token.type
+            ASTLeavesTypeCount.append(token.type)
 
         # ASTLeavesCount:
         # index 0 : Unknown
@@ -409,6 +454,10 @@ class FileParser():
     def calAccessControlTermFrequency(self):
         accessControlTF = {}
         accessControlTotalCount = sum(self.listener.accessControlCount.values())
+
+        if accessControlTotalCount == 0:
+            return None
+
         for accessControl in self.listener.accessControlCount.keys():
             accessControlTF[accessControl] = self.listener.accessControlCount[accessControl] / accessControlTotalCount
         
@@ -510,7 +559,7 @@ class FileParser():
         codeFeatures['CommentNumberRate'], codeFeatures['CommentTypeTF']= self.calculateCommentRateAndTypeTermFrequency(self.extractComment(tokenStream), file)
         codeFeatures['FunctionAvgLength'] = self.calculateFunctionAvgLength()
         codeFeatures['LocalVariableLocationVarience'] = self.calculateVariableLocationVariance()
-        codeFeatures['EnglishLevel'], codeFeatures['CammelConventionNumberRate'], codeFeatures['UnderScoreConventionNumberRate'] = self.calculateEnglishLevelAndNormalNamingRate()
+        codeFeatures['EnglishLevel'], codeFeatures['CammelConventionNumberRate'], codeFeatures['UnderScoreConventionNumberRate'] = self.calculateEnglishLevelAndNormalNamingRate(tokenStream)
         codeFeatures['LambdaFunctionNumberRate'] = self.calculateLambdaFunctionCallMethod()
         codeFeatures['roughExceptionNumberRate'] = self.calculateRoughExceptionRate()
         codeFeatures['WordNumberTF'], codeFeatures['WordNumberOfLineFrequency']  = self.calWordTermFrequencyAndCountOfLine(fileData)
@@ -520,7 +569,7 @@ class FileParser():
         codeFeatures['KeywordNumberRate'] = self.calKeywordRate(tokenStream, file)
         codeFeatures['FunctionNumberRate'] = self.calFunctionRate(file)
         codeFeatures['ParamsAvgNumber'], codeFeatures['ParamsNumberStandardDev'] = self.calParamsAvgAndStandardDev()
-        codeFeatures['LineAvgLength'], codeFeatures['LineLengthStandardDev'] = self.calLineLengthAvgAndStandardDev(fileData)
+        codeFeatures['LineAvgLength'], codeFeatures['LineLengthStandardDev'], codeFeatures['LineLengthFrequency'] = self.calLineLengthAvgAndStandardDev(fileData)
         codeFeatures['BlankLineNumberRate'] = self.calBlanklineRate(fileData)
         codeFeatures['TabNumberRate'], codeFeatures['SpaceNumberRate'], codeFeatures['NewLineNumberRate'] = self.calWhiteSpacesRate(file)
         codeFeatures['IsTabOrSpaceIndent'] = self.isTabOrSpaceIndent(fileData)

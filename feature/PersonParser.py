@@ -45,7 +45,7 @@ class PersonParser():
 
     def outputPersonFeatureToJson(self, personPath, outDir):
         personFeature = self.parseFileOfPerson(personPath)
-        outFileName = personFeature['PersonName']
+        outFileName = personFeature['PersonName'] + '.json'
         outFilePath = os.path.join(outDir, outFileName)
 
         if os.path.exists(outFilePath):
