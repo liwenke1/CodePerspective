@@ -1,11 +1,12 @@
-from collections import Counter
 import json
 import math
+import os
 import re
 import numpy as np
 import chardet
-from antlr4 import *
+from collections import Counter
 
+from antlr4 import *
 from .grammer import JavaParser
 from .grammer import JavaLexer
 from .grammer import JavaExtract
@@ -505,7 +506,7 @@ class FileParser():
 
     def extractCodeFeatures(self, file, fileData, tokenStream):
         codeFeatures = dict()
-        codeFeatures['NewUsageNumberRate'], _ = self.calaulateUsage(fileData)
+        codeFeatures['NewUsageNumberRate'], codeFeatures['SafetyUsageNumberRate'] = self.calaulateUsage(fileData)
         codeFeatures['CommentNumberRate'], codeFeatures['CommentTypeTF']= self.calculateCommentRateAndTypeTermFrequency(self.extractComment(tokenStream), file)
         codeFeatures['FunctionAvgLength'] = self.calculateFunctionAvgLength()
         codeFeatures['LocalVariableLocationVarience'] = self.calculateVariableLocationVariance()
@@ -530,18 +531,25 @@ class FileParser():
         return codeFeatures
 
 
-    # TODO: extrct psychologiacl features
-    # def extractPsychologicalFeatures(self, codefeatures):
-    #     openness = self.calculateOpenness(newUsageRate)
-    #     conscientiousness = self.calculateConscientiousness(safetyUsageRate, normalNamingRate, longFunctionRate, 
-    #                                                         commentRate, roughExceptionRate)
-    #     extroversion = self.calculateExtroversion(commentRate)
-    #     agreeableness = self.calculateAgreeableness(newUsageRate, longFunctionRate, lambdaFunctionCallMethodRate,
-    #                                                 roughExceptionRate)
-    #     neuroticism = self.calculateNeuroticism(normalNamingRate, localVariableVarience)
-    #     pass
+    def extractPsychologicalFeatures(self, codefeatures):
+        psychologicalFeatures = dict()
+        psychologicalFeatures['Openness'] = self.calculateOpenness(codefeatures['NewUsageNumberRate'])
+        psychologicalFeatures['Conscientiousness'] = self.calculateConscientiousness(codefeatures['SafetyUsageNumberRate'],
+                                                                                     codefeatures['CammelConventionNumberRate'],
+                                                                                     codefeatures['FunctionNumberRate'],
+                                                                                     codefeatures['CommentNumberRate'],
+                                                                                     codefeatures['roughExceptionNumberRate'])
+        psychologicalFeatures['Extroversion'] = self.calculateExtroversion(codefeatures['CommentNumberRate'])
+        psychologicalFeatures['Agreeableness'] = self.calculateAgreeableness(codefeatures['NewUsageNumberRate'],
+                                                                             codefeatures['FunctionNumberRate'],
+                                                                             codefeatures['LambdaFunctionNumberRate'],
+                                                                             codefeatures['roughExceptionNumberRate'])
+        psychologicalFeatures['Neuroticism'] = self.calculateNeuroticism(codefeatures['CammelConventionNumberRate'],
+                                                                         codefeatures['LocalVariableLocationVarience'])
+        return psychologicalFeatures
 
-    def parse(self, filePath):
+
+    def parseFile(self, filePath):
         with open(filePath, 'rb') as fp:
             file = fp.read()
         fileMode = chardet.detect(file)["encoding"]
@@ -561,9 +569,20 @@ class FileParser():
         fileFeatures = {
             'FileName': filePath.split('/')[-1],
             'FilePath': filePath,
-            'CodeFeatures': codeFeatures
-            # TODO: extrct psychologiacl features
-            # 'PsychologicalFeatures': self.extractPsychologicalFeatures(codeFeatures)
+            'CodeFeatures': codeFeatures,
+            'PsychologicalFeatures': self.extractPsychologicalFeatures(codeFeatures)
         }
 
         return fileFeatures
+
+    
+    def outputFileFeatureToJson(self, filePath, outDir):
+        fileFeature = self.parseFile(filePath)
+        outFileName = fileFeature['FileName']
+        outFilePath = os.path.join(outDir, outFileName)
+
+        if os.path.exists(outFilePath):
+            return
+
+        with open(outFilePath, 'w') as wp:
+            json.dump(fileFeature, wp, indent=4)
