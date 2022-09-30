@@ -87,6 +87,7 @@ class FileParser():
             return 'MultiLine'
         return 'None'
 
+
     def calculateCommentRateAndTypeTermFrequency(self, commentList, text):
         commentLength = 0
         commentTypeCount = {
@@ -331,7 +332,7 @@ class FileParser():
 
     # return > 0 : tabIndent majority   
     # return < 0 : spaceIndent majority
-    def IsTabOrSpaceIndent(self, fileData):
+    def isTabOrSpaceIndent(self, fileData):
         tabIndent = 0
         spaceIndent = 0
         for line in fileData:
@@ -345,7 +346,7 @@ class FileParser():
 
     # return > 0 : newLine majority Before Open Brace
     # return < 0 : OnLine majority Before Open Brace
-    def IsNewLineOrOnLineBeforeOpenBrance(self, tokenStream: CommonTokenStream):
+    def isNewLineOrOnLineBeforeOpenBrance(self, tokenStream: CommonTokenStream):
         newLineCount = 0
         onLineCount = 0
         for token in tokenStream.tokens:
@@ -502,6 +503,43 @@ class FileParser():
 
         return np.mean(neuroticism)
 
+    def extractCodeFeatures(self, file, fileData, tokenStream):
+        codeFeatures = dict()
+        codeFeatures['NewUsageNumberRate'], _ = self.calaulateUsage(fileData)
+        codeFeatures['CommentNumberRate'], codeFeatures['CommentTypeTF']= self.calculateCommentRateAndTypeTermFrequency(self.extractComment(tokenStream), file)
+        codeFeatures['FunctionAvgLength'] = self.calculateFunctionAvgLength()
+        codeFeatures['LocalVariableLocationVarience'] = self.calculateVariableLocationVariance()
+        codeFeatures['EnglishLevel'], codeFeatures['CammelConventionNumberRate'], codeFeatures['UnderScoreConventionNumberRate'] = self.calculateEnglishLevelAndNormalNamingRate()
+        codeFeatures['LambdaFunctionNumberRate'] = self.calculateLambdaFunctionCallMethod()
+        codeFeatures['roughExceptionNumberRate'] = self.calculateRoughExceptionRate()
+        codeFeatures['WordNumberTF'], codeFeatures['WordNumberOfLineFrequency']  = self.calWordTermFrequencyAndCountOfLine(fileData)
+        codeFeatures['TernaryOperatorNumberRate'] = self.calTernaryOperatorRate(file)
+        codeFeatures['ControlStructNumberRate'] = self.calControlStructureRate(file)
+        codeFeatures['LiteralNumberRate'] = self.calLiteralRate(file)
+        codeFeatures['KeywordNumberRate'] = self.calKeywordRate(tokenStream, file)
+        codeFeatures['FunctionNumberRate'] = self.calFunctionRate(file)
+        codeFeatures['ParamsAvgNumber'], codeFeatures['ParamsNumberStandardDev'] = self.calParamsAvgAndStandardDev()
+        codeFeatures['LineAvgLength'], codeFeatures['LineLengthStandardDev'] = self.calLineLengthAvgAndStandardDev(fileData)
+        codeFeatures['BlankLineNumberRate'] = self.calBlanklineRate(fileData)
+        codeFeatures['TabNumberRate'], codeFeatures['SpaceNumberRate'], codeFeatures['NewLineNumberRate'] = self.calWhiteSpacesRate(file)
+        codeFeatures['IsTabOrSpaceIndent'] = self.isTabOrSpaceIndent(fileData)
+        codeFeatures['IsNewLineOrOnLineBeforeOpenBrance'] = self.isNewLineOrOnLineBeforeOpenBrance(tokenStream)
+        codeFeatures['keywordTF'], codeFeatures['ASTLeavesTF'] = self.calASTLeavesAndKeywordTermFrequency(tokenStream)
+        codeFeatures['IndentifierLengthFrequency'] = self.calIndentifierLengthFrequency(tokenStream)
+        codeFeatures['AccessControlTF'] = self.calAccessControlTermFrequency()
+        return codeFeatures
+
+
+    # TODO: extrct psychologiacl features
+    # def extractPsychologicalFeatures(self, codefeatures):
+    #     openness = self.calculateOpenness(newUsageRate)
+    #     conscientiousness = self.calculateConscientiousness(safetyUsageRate, normalNamingRate, longFunctionRate, 
+    #                                                         commentRate, roughExceptionRate)
+    #     extroversion = self.calculateExtroversion(commentRate)
+    #     agreeableness = self.calculateAgreeableness(newUsageRate, longFunctionRate, lambdaFunctionCallMethodRate,
+    #                                                 roughExceptionRate)
+    #     neuroticism = self.calculateNeuroticism(normalNamingRate, localVariableVarience)
+    #     pass
 
     def parse(self, filePath):
         with open(filePath, 'rb') as fp:
@@ -519,24 +557,13 @@ class FileParser():
         with open(filePath, 'r', encoding=fileMode) as fp:
             fileData = fp.readlines()
 
-        # extract code features
-        newUsageRate, safetyUsageRate = self.calaulateUsage(fileData)
-        commentRate = self.calculateCommentRateAndTypeTermFrequency(self.extractComment(tokenStream), file)
-        longFunctionRate = self.calculateLongFunctionRate()
-        localVariableVarience = self.calculateVariableLocationVariance()
-        englishLevel, normalNamingRate = self.calculateEnglishLevelAndNormalNamingRate()
-        lambdaFunctionCallMethodRate = self.calculateLambdaFunctionCallMethod()
-        roughExceptionRate = self.calculateRoughExceptionRate()
+        codeFeatures = self.extractCodeFeatures(file, fileData, tokenStream)
+        fileFeatures = {
+            'FileName': filePath.split('/')[-1],
+            'FilePath': filePath,
+            'CodeFeatures': codeFeatures
+            # TODO: extrct psychologiacl features
+            # 'PsychologicalFeatures': self.extractPsychologicalFeatures(codeFeatures)
+        }
 
-        # calculate psychological features
-        openness = self.calculateOpenness(newUsageRate)
-        conscientiousness = self.calculateConscientiousness(safetyUsageRate, normalNamingRate, longFunctionRate, 
-                                                            commentRate, roughExceptionRate)
-        extroversion = self.calculateExtroversion(commentRate)
-        agreeableness = self.calculateAgreeableness(newUsageRate, longFunctionRate, lambdaFunctionCallMethodRate,
-                                                    roughExceptionRate)
-        neuroticism = self.calculateNeuroticism(normalNamingRate, localVariableVarience)
-
-        return [newUsageRate, safetyUsageRate, commentRate, longFunctionRate, localVariableVarience,
-                englishLevel, normalNamingRate, lambdaFunctionCallMethodRate, roughExceptionRate], \
-                openness, conscientiousness, extroversion, agreeableness, neuroticism
+        return fileFeatures
