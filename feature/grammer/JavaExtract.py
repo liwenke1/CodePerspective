@@ -31,6 +31,15 @@ class JavaExtract(JavaParserListener):
         self.controlStructureNumber = 0
         self.literalNumber = 0
 
+        # access control
+        self.accessControlCount = {
+            'Default': 0,
+            'Public': 0,
+            'Protected': 0,
+            'Private': 0
+        }
+
+
     def enterPackageDeclaration(self, ctx: JavaParser.PackageDeclarationContext):
         packageName = ctx.qualifiedName().getText()
         self.packageNameList.append(packageName)
@@ -227,3 +236,15 @@ class JavaExtract(JavaParserListener):
     def enterLiteral(self, ctx: JavaParser.LiteralContext):
         self.literalNumber += 1
         return super().enterLiteral(ctx)
+
+    
+    def enterClassOrInterfaceModifier(self, ctx: JavaParser.ClassOrInterfaceModifierContext):
+        if ctx.PUBLIC():
+            self.accessControlCount['Public'] += 1
+        elif ctx.PROTECTED():
+            self.accessControlCount['Protected'] += 1
+        elif ctx.PRIVATE():
+            self.accessControlCount['Private'] += 1
+        else:
+            self.accessControlCount['Default'] += 1
+        return super().enterClassOrInterfaceModifier(ctx)

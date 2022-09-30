@@ -405,6 +405,15 @@ class FileParser():
         return identifierLengthCount
 
 
+    def calAccessControlTermFrequency(self):
+        accessControlTF = {}
+        accessControlTotalCount = sum(self.listener.accessControlCount.values())
+        for accessControl in self.listener.accessControlCount.keys():
+            accessControlTF[accessControl] = self.listener.accessControlCount[accessControl] / accessControlTotalCount
+        
+        return accessControlTF
+
+
     def calculateOpenness(self, newUsageRate):
         return newUsageRate
 
