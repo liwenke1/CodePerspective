@@ -19,7 +19,7 @@ class FileParser():
         self.walker = ParseTreeWalker()
 
 
-    def calaulateUsage(self, fileData):
+    def calUsage(self, fileData):
         code = ''
         for line in fileData:
             code += line
@@ -48,7 +48,7 @@ class FileParser():
         oldUsageNumber = sum([len(re.findall(rule, code)) for rule in rules_old])
         safetyUsageNumber = sum([len(re.findall(rule, code)) for rule in rules_safety])
         
-        return newUsageNumber / (newUsageNumber + oldUsageNumber) if newUsageNumber + oldUsageNumber != 0 else None, None
+        return newUsageNumber, oldUsageNumber, safetyUsageNumber
 
 
     def extractStringOutput(self, code):
@@ -89,7 +89,7 @@ class FileParser():
         return 'None'
 
 
-    def calculateCommentRateAndTypeTermFrequency(self, commentList, text):
+    def calCommentRateAndTypeFrequency(self, commentList):
         if len(commentList) == 0:
             return 0, None
 
@@ -106,43 +106,17 @@ class FileParser():
             commentTypeCount[commentType] += 1
 
         commentTypeCount.pop('None')
-        commentTypeTotalCount = sum(commentTypeCount.values())
 
-        if commentTypeTotalCount == 0:
-            return math.log(commentLength / len(text)), None
-
-        commentTypeTermFrequency = {}
-        for commentType in commentTypeCount.keys():
-            commentTypeTermFrequency[commentType] = commentTypeCount[commentType] / commentTypeTotalCount
-        return math.log(commentLength / len(text)), commentTypeTermFrequency
+        return commentLength, commentTypeCount
 
 
-    def calculateFunctionAvgLength(self):
-        if self.listener.functionNumber == 0:
-            return None
-        
-        functionLength = []
-        for function in self.listener.functionList:
-            functionLength.append(function['functionEndLine'] - function['functionStartLine'] + 1)
-
-        return np.average(functionLength)
-
-
-    def calculateVariableLocationVariance(self):
+    def extractFunctionInfo(self):
         if self.listener.functionNumber == 0:
             return None
 
-        variableRelativeLocationAfterNorm = []
-        for function in self.listener.functionList:
-            functionLength = function['functionEndLine'] - function['functionStartLine'] + 1
-            for variable in function['localVariableList']:
-                variableRelativeLocationAfterNorm.append((variable['Line'] - function['functionStartLine'] + 1) / functionLength)
-        
-        if len(variableRelativeLocationAfterNorm) == 0:
-            return None
+        FunctionInfo = self.listener.functionList
 
-        variableVariance = np.std(variableRelativeLocationAfterNorm)
-        return variableVariance
+        return FunctionInfo
 
 
     def analyseEnglishLevel(self, wordList):
@@ -159,7 +133,7 @@ class FileParser():
                 englishScore += englishDict[word]
                 englishUsageTime += 1
 
-        return englishScore / englishUsageTime if englishUsageTime != 0 else 0
+        return englishScore, englishUsageTime
 
 
     def IsAWord(self, identifier):
@@ -233,17 +207,14 @@ class FileParser():
 
         englishLevel = self.analyseEnglishLevel(wordList)
 
-        return englishLevel, cammelIdentifierNumber / len(wordList), underScoreIdentifierNumber / len(wordList)
+        return englishLevel, cammelIdentifierNumber, underScoreIdentifierNumber, len(wordList)
 
 
-    def calculateLambdaFunctionCallMethod(self):
-        if self.listener.lambdaFunctionNumber + self.listener.functionNumber == 0:
-            return None
-
-        return self.listener.lambdaFunctionNumber / (self.listener.lambdaFunctionNumber + self.listener.functionNumber)
+    def calLambdaFunctionCallCount(self):
+        return self.listener.lambdaFunctionNumber
 
 
-    def calculateRoughExceptionRate(self):
+    def calRoughExceptionCount(self):
         if self.listener.exceptionNumber == 0 :
             return None
 
@@ -252,10 +223,10 @@ class FileParser():
             if exceptName == 'Exception':
                 roughExceptNumber += 1
 
-        return roughExceptNumber / self.listener.exceptionNumber
+        return roughExceptNumber
 
 
-    def calWordTermFrequencyAndCountOfLine(self, fileData):
+    def calWordFrequencyAndCountOfLine(self, fileData):
         word = []
         wordCountOfLine = []
         
@@ -269,85 +240,46 @@ class FileParser():
 
         wordFrequency = Counter(word)
         wordTotalCount = len(word)
-        wordTermFrequency = {}
-        for word, frequency in wordFrequency.items():
-            wordTermFrequency[word] = frequency / wordTotalCount
 
         wordCountOfLineFrequency = Counter(wordCountOfLine)
 
-        return wordTermFrequency, wordCountOfLineFrequency
+        return wordFrequency, wordCountOfLineFrequency, wordTotalCount
 
 
-    def calTernaryOperatorRate(self, text):
-        ternaryOperatorRate = self.listener.ternaryOperatorNumber / len(text)
-        if ternaryOperatorRate == 0:
-            return None
-        else:
-            return math.log(ternaryOperatorRate)
+    def calTernaryOperatorCount(self):
+        return self.listener.ternaryOperatorNumber
 
 
-    def calTokenRate(self, text):
+    def calTokenCount(self, text):
         token = re.split('[*;\\{\\}\\[\\]()+=\\-&/|%!?:,<>~`\\s\"]', text)
-        tokenRate = len(token) / len(text)
-        if tokenRate == 0:
-            return None
-        else:
-            return math.log(tokenRate)
+        return len(token)
 
 
-    def calControlStructureRate(self, text):
-        controlStructureNumberRate = self.listener.controlStructureNumber / len(text)
-        if controlStructureNumberRate == 0:
-            return None
-        else:
-            return math.log(controlStructureNumberRate)
+    def calControlStructureCount(self):
+        return self.listener.controlStructureNumber
         
 
-    def calLiteralRate(self, text):
-        literalNumberRate = self.listener.literalNumber / len(text)
-        if literalNumberRate == 0:
-            return None
-        else:
-            return math.log(literalNumberRate)
+    def calLiteralCount(self):
+        return self.listener.literalNumber
 
 
-    def calKeywordRate(self, tokenStream: CommonTokenStream, text):
+    def calKeywordCount(self, tokenStream: CommonTokenStream):
         tokenNumber = 0
         for token in tokenStream.tokens:
             if token.type >= 1 and token.type <= 66:
                 tokenNumber += 1
-        tokenNumberRate = tokenNumber / len(text)
-        if tokenNumberRate == 0:
-            return None
-        else:
-            return math.log(tokenNumberRate)
+
+        return tokenNumber
 
 
-    def calFunctionRate(self, text):
-        functionNumberTermRate = self.listener.functionNumber / len(text)
-        functionNumberRate = math.log(functionNumberTermRate) if functionNumberTermRate != 0 else None
-        return functionNumberRate
-
-
-    def calParamsAvgAndStandardDev(self):
-        paramNumeber = []
-        for function in self.listener.functionList:
-            paramNumeber.append(len(function['functionParams']))
-        
-        if len(paramNumeber) == 0:
-            return 0.0, 0.0
-
-        return sum(paramNumeber) / len(paramNumeber), np.std(paramNumeber)
-
-
-    def calLineLengthAvgAndStandardDev(self, fileData):
+    def calLineLengthFrequency(self, fileData):
         lineLength = [len(line) for line in fileData]
         lineLengthCount = Counter(lineLength)
         
-        return sum(lineLength) / len(lineLength), np.std(lineLength), lineLengthCount
+        return lineLengthCount
 
 
-    def calBlanklineRate(self, fileData):
+    def calBlanklineCount(self, fileData):
         blankCount = 0
         bufferCount = 0
         leadingFlag = False
@@ -360,39 +292,31 @@ class FileParser():
                 bufferCount = 1
                 leadingFlag = True
 
-        return math.log(blankCount / len(fileData))
+        return blankCount
 
 
     # return tabRate, spaceRate, and whiteSpaceRate
-    def calWhiteSpacesRate(self, text):
+    def calWhiteSpacesCount(self, text):
         tabTermCount = len(re.findall('\\t', text)) / len(text)
         spaceTermCount = len(re.findall(' ', text)) / len(text)
         newLineTermCount = len(re.findall('\\n', text)) / len(text)
 
-        tabCountRate = math.log(tabTermCount) if tabTermCount != 0 else None
-        spaceCountRate = math.log(spaceTermCount) if spaceTermCount != 0 else None
-        newLineCountRate = math.log(newLineTermCount) if newLineTermCount != 0 else None
-
-        return tabCountRate, spaceCountRate, newLineCountRate
+        return tabTermCount, spaceTermCount, newLineTermCount
 
 
-    # return > 0 : tabIndent majority   
-    # return < 0 : spaceIndent majority
-    def isTabOrSpaceIndent(self, fileData):
-        tabIndent = 0
-        spaceIndent = 0
+    def calTabAndSpaceIndentCount(self, fileData):
+        tabIndentCount = 0
+        spaceIndentCount = 0
         for line in fileData:
             if line.startswith('\\t'):
-                tabIndent += 1
+                tabIndentCount += 1
             elif line.startswith(' '):
-                spaceIndent += 1
+                spaceIndentCount += 1
 
-        return tabIndent > spaceIndent
+        return tabIndentCount, spaceIndentCount
 
 
-    # return > 0 : newLine majority Before Open Brace
-    # return < 0 : OnLine majority Before Open Brace
-    def isNewLineOrOnLineBeforeOpenBrance(self, tokenStream: CommonTokenStream):
+    def CalNewLineAndOnLineBeforeOpenBranceCount(self, tokenStream: CommonTokenStream):
         newLineCount = 0
         onLineCount = 0
         for token in tokenStream.tokens:
@@ -405,39 +329,60 @@ class FileParser():
             elif previousNewLineIndex < previousLetterIndex:
                 onLineCount += 1
 
-        return newLineCount > onLineCount
+        return newLineCount, onLineCount
 
 
     # Return AST Leaves TF And Keyword TF
     # AST Leaves consist of 130 types
-    # java has 65 kinds of keyword
-    def calASTLeavesAndKeywordTermFrequency(self, tokenStream: CommonTokenStream):
+    # java has 66 kinds of keyword
+    def calASTLeavesAndKeywordFrequency(self, tokenStream: CommonTokenStream):
+        
+        symbolicNames = [ "<INVALID>", "ABSTRACT", "ASSERT", "BOOLEAN", "BREAK", 
+                      "BYTE", "CASE", "CATCH", "CHAR", "CLASS", "CONST", 
+                      "CONTINUE", "DEFAULT", "DO", "DOUBLE", "ELSE", "ENUM", 
+                      "EXTENDS", "FINAL", "FINALLY", "FLOAT", "FOR", "IF", 
+                      "GOTO", "IMPLEMENTS", "IMPORT", "INSTANCEOF", "INT", 
+                      "INTERFACE", "LONG", "NATIVE", "NEW", "PACKAGE", "PRIVATE", 
+                      "PROTECTED", "PUBLIC", "RETURN", "SHORT", "STATIC", 
+                      "STRICTFP", "SUPER", "SWITCH", "SYNCHRONIZED", "THIS", 
+                      "THROW", "THROWS", "TRANSIENT", "TRY", "VOID", "VOLATILE", 
+                      "WHILE", "MODULE", "OPEN", "REQUIRES", "EXPORTS", 
+                      "OPENS", "TO", "USES", "PROVIDES", "WITH", "TRANSITIVE", 
+                      "VAR", "YIELD", "RECORD", "SEALED", "PERMITS", "NON_SEALED", 
+                      "DECIMAL_LITERAL", "HEX_LITERAL", "OCT_LITERAL", "BINARY_LITERAL", 
+                      "FLOAT_LITERAL", "HEX_FLOAT_LITERAL", "BOOL_LITERAL", 
+                      "CHAR_LITERAL", "STRING_LITERAL", "TEXT_BLOCK", "NULL_LITERAL", 
+                      "LPAREN", "RPAREN", "LBRACE", "RBRACE", "LBRACK", 
+                      "RBRACK", "SEMI", "COMMA", "DOT", "ASSIGN", "GT", 
+                      "LT", "BANG", "TILDE", "QUESTION", "COLON", "EQUAL", 
+                      "LE", "GE", "NOTEQUAL", "AND", "OR", "INC", "DEC", 
+                      "ADD", "SUB", "MUL", "DIV", "BITAND", "BITOR", "CARET", 
+                      "MOD", "ADD_ASSIGN", "SUB_ASSIGN", "MUL_ASSIGN", "DIV_ASSIGN", 
+                      "AND_ASSIGN", "OR_ASSIGN", "XOR_ASSIGN", "MOD_ASSIGN", 
+                      "LSHIFT_ASSIGN", "RSHIFT_ASSIGN", "URSHIFT_ASSIGN", 
+                      "ARROW", "COLONCOLON", "AT", "ELLIPSIS", "WS", "ENTER", 
+                      "COMMENT", "LINE_COMMENT", "IDENTIFIER" ]
+        
         ASTLeavesTypeCount = []
         for token in tokenStream.tokens:
             ASTLeavesTypeCount.append(token.type)
 
         # ASTLeavesCount:
         # index 0 : Unknown
-        # index 1-65: keyword
-        # index 66-129: operator identifier comment
+        # index 1-66: keyword
+        # index 67-129: operator identifier comment
         ASTLeavesCount = Counter(ASTLeavesTypeCount)
 
-        keywordTotalCount = 0
+        normKeywordFrequency = dict()
         for index in ASTLeavesCount.keys():
-            if index >= 1 and index <= 65:
-                keywordTotalCount += ASTLeavesCount[index]
+            if index >= 1 and index <= 66:
+                normKeywordFrequency[symbolicNames[index]] = ASTLeavesCount[index]
 
-        keywordTermFrequency = dict()
+        normASTLeavesFrequency = dict()
         for index in ASTLeavesCount.keys():
-            if index >= 1 and index <= 65:
-                keywordTermFrequency[index] = ASTLeavesCount[index] / keywordTotalCount
+            normASTLeavesFrequency[symbolicNames[index]] = ASTLeavesCount[index]
 
-        ASTLeavesTotalCount = len(ASTLeavesTypeCount)
-        ASTLeavesTermFrequency = dict()
-        for index in ASTLeavesCount.keys():
-            ASTLeavesTermFrequency[index] = ASTLeavesCount[index] / ASTLeavesTotalCount
-
-        return keywordTermFrequency, ASTLeavesTermFrequency
+        return normKeywordFrequency, normASTLeavesFrequency
 
 
     def calIndentifierLengthFrequency(self, tokenStream: CommonTokenStream):
@@ -451,17 +396,8 @@ class FileParser():
         return identifierLengthCount
 
 
-    def calAccessControlTermFrequency(self):
-        accessControlTF = {}
-        accessControlTotalCount = sum(self.listener.accessControlCount.values())
-
-        if accessControlTotalCount == 0:
-            return None
-
-        for accessControl in self.listener.accessControlCount.keys():
-            accessControlTF[accessControl] = self.listener.accessControlCount[accessControl] / accessControlTotalCount
-        
-        return accessControlTF
+    def calAccessControlFrequency(self):
+        return self.listener.accessControlCount
 
 
     def calculateOpenness(self, newUsageRate):
@@ -553,30 +489,29 @@ class FileParser():
 
         return np.mean(neuroticism)
 
-    def extractCodeFeatures(self, file, fileData, tokenStream):
+
+    def extractCodeOriginFeatures(self, file, fileData, tokenStream):
         codeFeatures = dict()
-        codeFeatures['NewUsageNumberRate'], codeFeatures['SafetyUsageNumberRate'] = self.calaulateUsage(fileData)
-        codeFeatures['CommentNumberRate'], codeFeatures['CommentTypeTF']= self.calculateCommentRateAndTypeTermFrequency(self.extractComment(tokenStream), file)
-        codeFeatures['FunctionAvgLength'] = self.calculateFunctionAvgLength()
-        codeFeatures['LocalVariableLocationVarience'] = self.calculateVariableLocationVariance()
-        codeFeatures['EnglishLevel'], codeFeatures['CammelConventionNumberRate'], codeFeatures['UnderScoreConventionNumberRate'] = self.calculateEnglishLevelAndNormalNamingRate(tokenStream)
-        codeFeatures['LambdaFunctionNumberRate'] = self.calculateLambdaFunctionCallMethod()
-        codeFeatures['roughExceptionNumberRate'] = self.calculateRoughExceptionRate()
-        codeFeatures['WordNumberTF'], codeFeatures['WordNumberOfLineFrequency']  = self.calWordTermFrequencyAndCountOfLine(fileData)
-        codeFeatures['TernaryOperatorNumberRate'] = self.calTernaryOperatorRate(file)
-        codeFeatures['ControlStructNumberRate'] = self.calControlStructureRate(file)
-        codeFeatures['LiteralNumberRate'] = self.calLiteralRate(file)
-        codeFeatures['KeywordNumberRate'] = self.calKeywordRate(tokenStream, file)
-        codeFeatures['FunctionNumberRate'] = self.calFunctionRate(file)
-        codeFeatures['ParamsAvgNumber'], codeFeatures['ParamsNumberStandardDev'] = self.calParamsAvgAndStandardDev()
-        codeFeatures['LineAvgLength'], codeFeatures['LineLengthStandardDev'], codeFeatures['LineLengthFrequency'] = self.calLineLengthAvgAndStandardDev(fileData)
-        codeFeatures['BlankLineNumberRate'] = self.calBlanklineRate(fileData)
-        codeFeatures['TabNumberRate'], codeFeatures['SpaceNumberRate'], codeFeatures['NewLineNumberRate'] = self.calWhiteSpacesRate(file)
-        codeFeatures['IsTabOrSpaceIndent'] = self.isTabOrSpaceIndent(fileData)
-        codeFeatures['IsNewLineOrOnLineBeforeOpenBrance'] = self.isNewLineOrOnLineBeforeOpenBrance(tokenStream)
-        codeFeatures['keywordTF'], codeFeatures['ASTLeavesTF'] = self.calASTLeavesAndKeywordTermFrequency(tokenStream)
+        codeFeatures['NewUsageNumber'], codeFeatures['OldUseageNumber'], codeFeatures['SafetyUsageNumber'] = self.calUsage(fileData)
+        codeFeatures['CommentNumber'], codeFeatures['CommentTypeFrequency']= self.calCommentRateAndTypeFrequency(self.extractComment(tokenStream))
+        codeFeatures['FunctionInfo'] = self.extractFunctionInfo()
+        codeFeatures['EnglishScore'], codeFeatures['EnglishUsageNumber'], codeFeatures['CammelConventionNumber'],
+        codeFeatures['UnderScoreConventionNumber'], codeFeatures['NormalIdentifierNumber']= self.calculateEnglishLevelAndNormalNamingRate(tokenStream)
+        
+        codeFeatures['LambdaFunctionNumber'] = self.calLambdaFunctionCallCount()
+        codeFeatures['roughExceptionNumber'] = self.calRoughExceptionCount()
+        codeFeatures['wordFrequency'], codeFeatures['WordNumberOfLineFrequency'], codeFeatures['WordNumber'] = self.calWordFrequencyAndCountOfLine(fileData)
+        codeFeatures['TernaryOperatorNumber'] = self.calTernaryOperatorCount()
+        codeFeatures['ControlStructNumber'] = self.calControlStructureCount()
+        codeFeatures['LiteralNumber'] = self.calLiteralCount()
+        codeFeatures['LineLengthFrequency'] = self.calLineLengthFrequency(fileData)
+        codeFeatures['BlankLineNumberNumber'] = self.calBlanklineCount(fileData)
+        codeFeatures['TabNumberNumber'], codeFeatures['SpaceNumberNumber'], codeFeatures['NewLineNumberNumber'] = self.calWhiteSpacesCount(file)
+        codeFeatures['TabIndentNumber'], codeFeatures['TabIndentNumber'] = self.calTabAndSpaceIndentCount(fileData)
+        codeFeatures['NewLineBeforeOpenBranceNumber'], codeFeatures['OnLineBeforeOpenBranceNumber'] = self.CalNewLineAndOnLineBeforeOpenBranceCount(tokenStream)
+        codeFeatures['keywordFrequency'], codeFeatures['ASTLeavesFrequency'] = self.calASTLeavesAndKeywordFrequency(tokenStream)
         codeFeatures['IndentifierLengthFrequency'] = self.calIndentifierLengthFrequency(tokenStream)
-        codeFeatures['AccessControlTF'] = self.calAccessControlTermFrequency()
+        codeFeatures['AccessControlFrequency'] = self.calAccessControlFrequency()
         return codeFeatures
 
 
@@ -618,6 +553,8 @@ class FileParser():
         fileFeatures = {
             'FileName': filePath.split('/')[-1],
             'FilePath': filePath,
+            'FileLength': len(file),
+            'FileLineNumber': len(fileData),
             'CodeFeatures': codeFeatures,
             'PsychologicalFeatures': self.extractPsychologicalFeatures(codeFeatures)
         }
