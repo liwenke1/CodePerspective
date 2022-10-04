@@ -179,12 +179,12 @@ class FileParser():
         identifierList = self.extractAllIdentifier(tokenStream)
 
         if len(identifierList) == 0:
-            return None, None, None
+            return None, None, None, None, None
 
         wordList = []
         
         if len(wordList) == 0:
-            return None, None, None
+            return None, None, None, None, None
 
         cammelIdentifierNumber = 0
         underScoreIdentifierNumber = 0
@@ -549,14 +549,13 @@ class FileParser():
         with open(filePath, 'r', encoding=fileMode) as fp:
             fileData = fp.readlines()
 
-        codeFeatures = self.extractCodeFeatures(file, fileData, tokenStream)
+        codeFeatures = self.extractCodeOriginFeatures(file, fileData, tokenStream)
         fileFeatures = {
             'FileName': filePath.split('/')[-1],
             'FilePath': filePath,
             'FileLength': len(file),
             'FileLineNumber': len(fileData),
-            'CodeFeatures': codeFeatures,
-            'PsychologicalFeatures': self.extractPsychologicalFeatures(codeFeatures)
+            'CodeFeatures': codeFeatures
         }
 
         return fileFeatures

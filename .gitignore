@@ -6,6 +6,7 @@
 *test*
 dataset/
 report*/
+*.zip
 
 # config
 .DS_Store
