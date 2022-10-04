@@ -425,7 +425,7 @@ class FileParser():
         keywordTotalCount = 0
         for index in ASTLeavesCount.keys():
             if index >= 1 and index <= 65:
-                keywordTotalCount += 1
+                keywordTotalCount += ASTLeavesCount[index]
 
         keywordTermFrequency = dict()
         for index in ASTLeavesCount.keys():
