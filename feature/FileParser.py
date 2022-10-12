@@ -90,8 +90,8 @@ class FileParser():
 
 
     def calCommentRateAndTypeFrequency(self, commentList):
-        if len(commentList) == 0:
-            return 0, None
+        # if len(commentList) == 0:
+        #     return 0, None
 
         commentLength = 0
         commentTypeCount = {
@@ -112,7 +112,7 @@ class FileParser():
 
     def extractFunctionInfo(self):
         if self.listener.functionNumber == 0:
-            return None
+            return []
 
         FunctionInfo = self.listener.functionList
 
@@ -137,7 +137,7 @@ class FileParser():
 
 
     def IsAWord(self, identifier):
-        aWord = re.compile('[a-z0-9]+')
+        aWord = re.compile('[a-z]+')
         if aWord.match(identifier):
             return True
         else:
@@ -166,48 +166,54 @@ class FileParser():
         return None, False
 
 
-    def extractAllIdentifier(self, tokenStream: CommonTokenStream):
+    def extractAllIdentifier(self):
         identifierList = []
-        for token in tokenStream.tokens:
-            if token.type == 129:
-                identifierList.append(token.text)
+
+        identifierList.extend(self.listener.classNameList)
+        identifierList.extend(self.listener.classVariableNameList)
+        for function in self.listener.functionList:
+            identifierList.append(function['functionName'])
+            for variable in function['localVariableList']:
+                identifierList.append(variable['variableName'])
         
         return identifierList
 
 
-    def calculateEnglishLevelAndNormalNamingRate(self, tokenStream):
-        identifierList = self.extractAllIdentifier(tokenStream)
+    def calculateEnglishLevelAndNormalNamingRate(self):
+        identifierList = self.extractAllIdentifier()
 
         if len(identifierList) == 0:
-            return None, None, None, None, None
+            return [], 0, 0
 
-        wordList = []
+        englistWordList = []
         
-        if len(wordList) == 0:
-            return None, None, None, None, None
+        # if len(wordList) == 0:
+        #     return None, None, None, None, None
 
         cammelIdentifierNumber = 0
         underScoreIdentifierNumber = 0
         for identifier in identifierList:
-            # filter out the identifier which consists of one word
-            if self.IsAWord(identifier):
-                continue
-
             wordFromIdentifier, isNormal = self.extractWordAccordingToCammel(identifier)
             if isNormal:
-                wordList.extend(wordFromIdentifier)
+                englistWordList.extend(wordFromIdentifier)
                 cammelIdentifierNumber += 1
                 continue
 
             wordFromIdentifier, isNormal = self.extractWordAccordingToUnderScore(identifier)
             if isNormal:
-                wordList.extend(wordFromIdentifier)
+                englistWordList.extend(wordFromIdentifier)
                 underScoreIdentifierNumber += 1
                 continue
+            
+            # filter out the identifier which consists of one word
+            if self.IsAWord(identifier):
+                englistWordList.append(identifier)
+                continue
 
-        englishLevel = self.analyseEnglishLevel(wordList)
 
-        return englishLevel, cammelIdentifierNumber, underScoreIdentifierNumber, len(wordList)
+        # englishScore, englistUsageNumber = self.analyseEnglishLevel(wordList)
+
+        return englistWordList, cammelIdentifierNumber, underScoreIdentifierNumber
 
 
     def calLambdaFunctionCallCount(self):
@@ -216,7 +222,7 @@ class FileParser():
 
     def calRoughExceptionCount(self):
         if self.listener.exceptionNumber == 0 :
-            return None
+            return 0
 
         roughExceptNumber = 0
         for exceptName in self.listener.exceptionNameList:
@@ -386,10 +392,10 @@ class FileParser():
 
 
     def calIndentifierLengthFrequency(self, tokenStream: CommonTokenStream):
-        identifierLength = []
-        for token in tokenStream.tokens:
-            if token.type == 129:
-                identifierLength.append(len(token.text))
+        identifierLength = [ len(identifier) for identifier in self.extractAllIdentifier()]
+        # for token in tokenStream.tokens:
+        #     if token.type == 129:
+        #         identifierLength.append(len(token.text))
         
         identifierLengthCount = Counter(identifierLength)
 
@@ -495,8 +501,7 @@ class FileParser():
         codeFeatures['NewUsageNumber'], codeFeatures['OldUseageNumber'], codeFeatures['SafetyUsageNumber'] = self.calUsage(fileData)
         codeFeatures['CommentNumber'], codeFeatures['CommentTypeFrequency']= self.calCommentRateAndTypeFrequency(self.extractComment(tokenStream))
         codeFeatures['FunctionInfo'] = self.extractFunctionInfo()
-        codeFeatures['EnglishScore'], codeFeatures['EnglishUsageNumber'], codeFeatures['CammelConventionNumber'],
-        codeFeatures['UnderScoreConventionNumber'], codeFeatures['NormalIdentifierNumber']= self.calculateEnglishLevelAndNormalNamingRate(tokenStream)
+        codeFeatures['EnglistWord'], codeFeatures['CammelConventionNumber'], codeFeatures['UnderScoreConventionNumber']= self.calculateEnglishLevelAndNormalNamingRate()
         
         codeFeatures['LambdaFunctionNumber'] = self.calLambdaFunctionCallCount()
         codeFeatures['roughExceptionNumber'] = self.calRoughExceptionCount()
@@ -563,11 +568,8 @@ class FileParser():
     
     def outputFileFeatureToJson(self, filePath, outDir):
         fileFeature = self.parseFile(filePath)
-        outFileName = fileFeature['FileName']
+        outFileName = fileFeature['FileName'].rsplit('.', 1)[0] + '.json'
         outFilePath = os.path.join(outDir, outFileName)
-
-        if os.path.exists(outFilePath):
-            return
 
         with open(outFilePath, 'w') as wp:
             json.dump(fileFeature, wp, indent=4)
