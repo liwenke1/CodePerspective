@@ -163,8 +163,8 @@ class FileParser():
 
 
     def IsAWord(self, identifier):
-        aWord = re.compile('[a-z0-9]+')
-        if aWord.match(identifier):
+        result = re.match('[a-z]+', identifier)
+        if result and result.span()[1] == len(identifier):
             return True
         else:
             return False
@@ -173,7 +173,7 @@ class FileParser():
     def extractWordAccordingToCammel(self, identifier):
         cammelPattern = re.compile('([a-z0-9]+|[A-Z][a-z0-9]+)((?:[A-Z0-9][a-z0-9]*)*)')
         result = cammelPattern.match(identifier)
-        if result:
+        if result and result.span()[1] == len(identifier):
             wordList = []
             wordList.append(result.group(1))
             for word in re.findall('[A-Z0-9][a-z0-9]*', result.group(2)):
